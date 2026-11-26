@@ -268,7 +268,7 @@ function createBuilding(x,z,index) {
   const floorH=3.15, h=floors*floorH;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
   const facade=mats.facades[index%mats.facades.length];
-  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,bumpMap:facade,bumpScale:.035,roughness:.91,metalness:.025}));
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,bumpMap:facade,bumpScale:.065,roughness:.88,metalness:.025}));
   body.position.y=h/2+.22; body.castShadow=true; body.receiveShadow=true; group.add(body);
 
   const trim=mat(0xd4c9b7), darkTrim=mat(0x465257), glass=mat(index%4===0?0x8bb7c2:0x527583,.2,{metalness:.28}), glassLit=mat(0xe7c98d,.28,{emissive:0x6b4a20,emissiveIntensity:.12});
@@ -432,26 +432,32 @@ function createBuilding(x,z,index) {
   }
 }
 function addParkGrass(cx,cz) {
+  // Three crossed, tapered blades per clump create a readable 3D lawn silhouette.
   const vertices=[],indices=[];
   for(let blade=0;blade<3;blade++){
-    const angle=blade*Math.PI/3,dx=Math.cos(angle)*.10,dz=Math.sin(angle)*.10,base=vertices.length/3;
-    vertices.push(-dx,0,-dz,dx,0,dz,dx*.35,.42,dz*.35);
-    indices.push(base,base+1,base+2);
+    const a=blade*Math.PI/3,wx=Math.cos(a)*.075,wz=Math.sin(a)*.075;
+    const leanX=Math.cos(a+1.1)*.11,leanZ=Math.sin(a+1.1)*.11;
+    const b=vertices.length/3,h=.42+(blade%2)*.09;
+    vertices.push(-wx,0,-wz,wx,0,wz,wx*.18+leanX,h,wz*.18+leanZ,
+      -wx,0,-wz,wx*.18+leanX,h,wz*.18+leanZ,-wx*.18+leanX,h,-wz*.18+leanZ);
+    indices.push(b,b+1,b+2,b+3,b+4,b+5);
   }
   const geo=new THREE.BufferGeometry();
   geo.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));
   geo.setIndex(indices);geo.computeVertexNormals();
   const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,side:THREE.DoubleSide});
-  const count=230,field=new THREE.InstancedMesh(geo,material,count),dummy=new THREE.Object3D();
-  const colors=[new THREE.Color(0x668c45),new THREE.Color(0x8da957),new THREE.Color(0x426b3b),new THREE.Color(0xb1b96a)];
+  const count=isMobile?1050:1650,field=new THREE.InstancedMesh(geo,material,count),dummy=new THREE.Object3D();
+  const colors=[new THREE.Color(0x527b38),new THREE.Color(0x6f9844),new THREE.Color(0x91ad53),new THREE.Color(0x3e6732),new THREE.Color(0xb1bd68)];
   let placed=0,tries=0;
-  while(placed<count&&tries<count*8){
+  while(placed<count&&tries<count*10){
     tries++;
-    const x=(Math.random()-.5)*15.5,z=(Math.random()-.5)*15.5;
+    const x=(Math.random()-.5)*16.7,z=(Math.random()-.5)*16.7;
     if(Math.abs(x)<1.35||Math.abs(z)<1.35)continue;
-    if([[-6,-6],[6,-6],[-6,6],[6,6]].some(([tx,tz])=>Math.hypot(x-tx,z-tz)<1.7))continue;
-    dummy.position.set(cx+x,.035,cz+z);dummy.rotation.y=Math.random()*Math.PI*2;
-    const scale=.65+Math.random()*.85;dummy.scale.set(scale,scale,scale);
+    if([[-6,-6],[6,-6],[-6,6],[6,6]].some(([tx,tz])=>Math.hypot(x-tx,z-tz)<1.65))continue;
+    dummy.position.set(cx+x,.035,cz+z);
+    dummy.rotation.y=Math.random()*Math.PI*2;
+    const scale=.72+Math.random()*.9;
+    dummy.scale.set(scale,.72+Math.random()*.9,scale);
     dummy.updateMatrix();field.setMatrixAt(placed,dummy.matrix);
     field.setColorAt(placed,colors[Math.floor(Math.random()*colors.length)]);placed++;
   }
@@ -620,8 +626,8 @@ function setupLighting(){
   sun=new THREE.DirectionalLight(0xffedcf,3.1);
   sun.position.set(-65,95,50);sun.castShadow=true;
   sun.shadow.mapSize.set(quality.shadowSize,quality.shadowSize);
-  sun.shadow.radius = isMobile ? 3 : 4;
-  sun.shadow.camera.left=-105;sun.shadow.camera.right=105;sun.shadow.camera.top=105;sun.shadow.camera.bottom=-105;
+  sun.shadow.radius = isMobile ? 2 : 3;
+  sun.shadow.camera.left=-92;sun.shadow.camera.right=92;sun.shadow.camera.top=92;sun.shadow.camera.bottom=-92;
   sun.shadow.camera.near=1;sun.shadow.camera.far=220;
   sun.shadow.bias=-.00025;sun.shadow.normalBias=.035;
   scene.add(sun);
