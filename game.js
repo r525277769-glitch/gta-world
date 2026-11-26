@@ -123,49 +123,103 @@ function canvasTexture(draw, repeatX = 1, repeatY = 1) {
   return texture;
 }
 function makeTextures() {
-  const asphalt = canvasTexture((c,w,h) => {
-    c.fillStyle = "#343b40"; c.fillRect(0,0,w,h);
-    for(let i=0;i<1800;i++){const x=Math.random()*w,y=Math.random()*h,a=Math.random()*.12;c.fillStyle="rgba(220,225,220,"+a+")";c.fillRect(x,y,1+Math.random()*2,1+Math.random()*2);}
-  }, 5, 5);
-  mats.road = new THREE.MeshStandardMaterial({map:asphalt, bumpMap:asphalt, bumpScale:.025, roughness:1});
+  // High-resolution procedural materials: layered grass, stone paving and facade finishes.
   const grassTexture = canvasTexture((c,w,h) => {
-    c.fillStyle = "#718b68"; c.fillRect(0,0,w,h);
-    for(let i=0;i<4200;i++){
-      const shade = Math.random()>.5 ? "rgba(190,205,130," : "rgba(35,70,42,";
-      c.fillStyle = shade + (Math.random()*.16+.025) + ")";
-      c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*3,1+Math.random()*3);
+    c.fillStyle = "#667f55"; c.fillRect(0,0,w,h);
+    // Irregular color patches prevent the ground from reading as a flat green carpet.
+    for(let i=0;i<1700;i++){
+      const r=8+Math.random()*58, x=Math.random()*w, y=Math.random()*h;
+      c.fillStyle=Math.random()>.5?"rgba(145,166,91,.10)":"rgba(28,57,35,.12)";
+      c.beginPath();c.ellipse(x,y,r,r*(.35+Math.random()*.7),Math.random()*Math.PI,0,Math.PI*2);c.fill();
     }
-  }, 14, 14);
+    // Fine blades and tiny clumps remain visible at street level.
+    for(let i=0;i<18000;i++){
+      const x=Math.random()*w,y=Math.random()*h,len=2+Math.random()*10;
+      c.strokeStyle=Math.random()>.52?"rgba(190,202,123,.30)":"rgba(25,53,31,.30)";
+      c.lineWidth=.7+Math.random()*1.1;c.beginPath();c.moveTo(x,y);c.lineTo(x+(Math.random()-.5)*4,y-len);c.stroke();
+    }
+    for(let i=0;i<8000;i++){
+      c.fillStyle="rgba(220,211,151,"+(Math.random()*.10)+")";
+      c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);
+    }
+  }, 11, 11);
+  const grassBump = canvasTexture((c,w,h) => {
+    c.fillStyle="#777";c.fillRect(0,0,w,h);
+    for(let i=0;i<22000;i++){const v=75+Math.random()*120;c.fillStyle="rgb("+v+","+v+","+v+")";c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*3,1+Math.random()*3);}
+  },11,11);
+  mats.grass = new THREE.MeshStandardMaterial({map:grassTexture,bumpMap:grassBump,bumpScale:.075,roughness:1});
+
   const pavementTexture = canvasTexture((c,w,h) => {
-    c.fillStyle = "#b9b5a9"; c.fillRect(0,0,w,h);
-    c.strokeStyle = "rgba(75,78,75,.18)"; c.lineWidth = 3;
-    for(let p=0;p<=w;p+=128){c.beginPath();c.moveTo(p,0);c.lineTo(p,h);c.stroke();}
-    for(let p=0;p<=h;p+=128){c.beginPath();c.moveTo(0,p);c.lineTo(w,p);c.stroke();}
-    for(let i=0;i<1800;i++){c.fillStyle="rgba(60,65,60,"+(Math.random()*.09)+")";c.fillRect(Math.random()*w,Math.random()*h,2,2);}
-  }, 8, 8);
-  mats.grass = new THREE.MeshStandardMaterial({map:grassTexture,roughness:1});
-  mats.sidewalk = new THREE.MeshStandardMaterial({map:pavementTexture,roughness:1});
-  mats.white = mat(0xf1eee3);
-  mats.yellow = mat(0xf4c64d, .75);
-  mats.dark = mat(0x20272c);
-  mats.glass = mat(0x416675, .24, {metalness:.35});
-  mats.glassLight = mat(0x9ac4c8, .28, {metalness:.2});
-  mats.leaf = [mat(0x4f7952),mat(0x668b59),mat(0x789565)];
-  mats.trunk = mat(0x76553d);
-  mats.lamp = mat(0xffe6a3, .35, {emissive:0xffbd57,emissiveIntensity:.45});
-  mats.facades = [0xb9a58f,0x9aa9a7,0xc9c0ad,0x9caaa9,0xc1b29f,0x858f94,0xd0c5b1].map((color,index) =>
-    canvasTexture((c,w,h) => {
-      c.fillStyle = "#" + color.toString(16).padStart(6,"0"); c.fillRect(0,0,w,h);
-      c.fillStyle = "rgba(40,48,50,.16)";
-      for(let y=0;y<h;y+=64){c.fillRect(0,y,w,3);}
-      for(let y=14;y<h-20;y+=64){
-        for(let x=16;x<w-16;x+=66){
-          c.fillStyle="rgba(27,45,54,.28)";c.fillRect(x-3,y-3,48,40);
-          c.fillStyle=index%2?"#63818a":"#4d6c78";c.fillRect(x,y,42,34);
-          c.fillStyle="rgba(210,231,226,.5)";c.fillRect(x+3,y+3,3,28);
-          c.fillStyle="#c4b9a7";c.fillRect(x-4,y+36,50,5);
-        }
+    c.fillStyle="#aaa99f";c.fillRect(0,0,w,h);
+    const tile=128;
+    for(let y=0;y<h;y+=tile) for(let x=0;x<w;x+=tile){
+      const v=165+Math.floor(Math.random()*25);
+      c.fillStyle="rgb("+v+","+(v-2)+","+(v-9)+")";c.fillRect(x+3,y+3,tile-6,tile-6);
+      c.fillStyle="rgba(255,255,245,.24)";c.fillRect(x+4,y+4,tile-8,2);c.fillRect(x+4,y+4,2,tile-8);
+      c.fillStyle="rgba(55,58,57,.30)";c.fillRect(x+4,y+tile-6,tile-8,2);c.fillRect(x+tile-6,y+4,2,tile-8);
+      for(let k=0;k<150;k++){
+        c.fillStyle="rgba(48,51,49,"+(Math.random()*.12)+")";
+        c.fillRect(x+Math.random()*tile,y+Math.random()*tile,1+Math.random()*3,1+Math.random()*3);
       }
+    }
+    // Scuffs, hairline cracks and subtle dirt near slab edges.
+    for(let i=0;i<180;i++){
+      const x=Math.random()*w,y=Math.random()*h;
+      c.strokeStyle="rgba(65,66,61,.16)";c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(x+4+Math.random()*18,y+2+Math.random()*12);c.stroke();
+    }
+  }, 8, 8);
+  const pavementBump=canvasTexture((c,w,h)=>{
+    c.fillStyle="#888";c.fillRect(0,0,w,h);
+    for(let i=0;i<16000;i++){const v=95+Math.random()*95;c.fillStyle="rgb("+v+","+v+","+v+")";c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);}
+  },8,8);
+  mats.sidewalk = new THREE.MeshStandardMaterial({map:pavementTexture,bumpMap:pavementBump,bumpScale:.045,roughness:.96});
+
+  const asphalt=canvasTexture((c,w,h)=>{
+    c.fillStyle="#292f33";c.fillRect(0,0,w,h);
+    for(let i=0;i<18000;i++){const v=Math.random()>.5?210:95;c.fillStyle="rgba("+v+","+v+","+v+","+(Math.random()*.13)+")";c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);}
+    for(let i=0;i<65;i++){const x=Math.random()*w,y=Math.random()*h;c.strokeStyle="rgba(12,15,16,.22)";c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(x+Math.random()*25,y+Math.random()*8);c.stroke();}
+  },5,5);
+  mats.road = new THREE.MeshStandardMaterial({map:asphalt,bumpMap:asphalt,bumpScale:.035,roughness:1});
+
+  mats.white = mat(0xf1eee3);
+  mats.yellow = mat(0xf4c64d,.75);
+  mats.dark = mat(0x20272c);
+  mats.glass = mat(0x416675,.24,{metalness:.35});
+  mats.glassLight = mat(0x9ac4c8,.28,{metalness:.2});
+  mats.leaf=[mat(0x416c43),mat(0x5d824b),mat(0x78945a)];
+  mats.trunk=mat(0x76553d);
+  mats.lamp=mat(0xffe6a3,.35,{emissive:0xffbd57,emissiveIntensity:.45});
+
+  mats.facades=[0xb9a58f,0x9aa9a7,0xc9c0ad,0x9caaa9,0xc1b29f,0x858f94,0xd0c5b1].map((color,index)=>
+    canvasTexture((c,w,h)=>{
+      const base="#"+color.toString(16).padStart(6,"0");c.fillStyle=base;c.fillRect(0,0,w,h);
+      // Fine stucco / concrete grain with subtle color variation.
+      for(let i=0;i<24000;i++){
+        const alpha=Math.random()*.13, light=Math.random()>.5;
+        c.fillStyle=light?"rgba(255,245,225,"+alpha+")":"rgba(25,34,38,"+alpha+")";
+        c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*3,1+Math.random()*3);
+      }
+      for(let y=0;y<h;y+=128){
+        c.fillStyle="rgba(38,46,48,.17)";c.fillRect(0,y,w,3);
+        c.fillStyle="rgba(255,255,245,.15)";c.fillRect(0,y+4,w,2);
+      }
+      // Brick / cladding courses visible between the modeled windows.
+      if(index===0||index===4||index===6){
+        for(let y=8;y<h;y+=24) for(let x=(Math.floor(y/24)%2)*32;x<w;x+=64){
+          c.strokeStyle="rgba(83,66,52,.16)";c.lineWidth=1;c.strokeRect(x,y,64,24);
+        }
+      } else {
+        for(let x=0;x<w;x+=128){c.fillStyle="rgba(38,50,54,.10)";c.fillRect(x,0,3,h);}
+      }
+      // Recessed-looking blue glass panes; geometry frames and sills sit above them.
+      for(let y=20;y<h-24;y+=128) for(let x=16;x<w-16;x+=128){
+        c.fillStyle="rgba(28,43,50,.28)";c.fillRect(x-4,y-4,88,78);
+        c.fillStyle=index%2?"#607f88":"#496b78";c.fillRect(x,y,80,68);
+        c.fillStyle="rgba(218,237,231,.42)";c.fillRect(x+6,y+5,5,56);
+        c.fillStyle="rgba(255,255,255,.12)";c.fillRect(x+14,y+6,60,2);
+      }
+      // Weathering streaks beneath roof edges.
+      for(let i=0;i<34;i++){const x=Math.random()*w,y=Math.random()*h;c.fillStyle="rgba(55,58,53,"+(Math.random()*.08)+")";c.fillRect(x,y,1+Math.random()*4,8+Math.random()*42);}
     },1,1)
   );
 }
@@ -214,7 +268,7 @@ function createBuilding(x,z,index) {
   const floorH=3.15, h=floors*floorH;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
   const facade=mats.facades[index%mats.facades.length];
-  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,roughness:.9,metalness:.02}));
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,roughness:.94,metalness:.015}));
   body.position.y=h/2+.22; body.castShadow=true; body.receiveShadow=true; group.add(body);
 
   const trim=mat(0xd4c9b7), darkTrim=mat(0x465257), glass=mat(index%4===0?0x8bb7c2:0x527583,.2,{metalness:.28}), glassLit=mat(0xe7c98d,.28,{emissive:0x6b4a20,emissiveIntensity:.12});
