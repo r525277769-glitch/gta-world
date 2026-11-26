@@ -171,29 +171,29 @@ function makeTextures() {
 }
 
 function addRoads() {
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(300,300), mats.grass);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(420,420), mats.grass);
   ground.rotation.x = -Math.PI/2; ground.position.y = -0.12; ground.receiveShadow = true; scene.add(ground);
   const roadW = 14, step = 44, curb = mat(0xd8d2c5), white = mat(0xe8e6dc), yellow = mat(0xf2c94c);
-  for (let i=-3;i<=3;i++) {
+  for (let i=-4;i<=4;i++) {
     const p=i*step;
-    const v=new THREE.Mesh(new THREE.PlaneGeometry(roadW,300),mats.road);
+    const v=new THREE.Mesh(new THREE.PlaneGeometry(roadW,420),mats.road);
     v.rotation.x=-Math.PI/2; v.position.set(p,.012,0); v.receiveShadow=true; scene.add(v);
-    const h=new THREE.Mesh(new THREE.PlaneGeometry(300,roadW),mats.road);
+    const h=new THREE.Mesh(new THREE.PlaneGeometry(420,roadW),mats.road);
     h.rotation.x=-Math.PI/2; h.position.set(0,.013,p); h.receiveShadow=true; scene.add(h);
     for (const side of [-1,1]) {
       const off=10.1*side;
-      const sv=new THREE.Mesh(new THREE.PlaneGeometry(6.2,300),mats.sidewalk);
+      const sv=new THREE.Mesh(new THREE.PlaneGeometry(6.2,420),mats.sidewalk);
       sv.rotation.x=-Math.PI/2; sv.position.set(p+off,.025,0); sv.receiveShadow=true; scene.add(sv);
-      const sh=new THREE.Mesh(new THREE.PlaneGeometry(300,6.2),mats.sidewalk);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(420,6.2),mats.sidewalk);
       sh.rotation.x=-Math.PI/2; sh.position.set(0,.026,p+off); sh.receiveShadow=true; scene.add(sh);
-      box(scene,p+side*7.22,.11,0,.44,.22,300,curb,false);
-      box(scene,0,.11,p+side*7.22,300,.22,.44,curb,false);
+      box(scene,p+side*7.22,.11,0,.44,.22,420,curb,false);
+      box(scene,0,.11,p+side*7.22,420,.22,.44,curb,false);
     }
     for (const o of [-.16,.16]) {
-      box(scene,p+o,.035,0,.11,.025,300,yellow,false);
-      box(scene,0,.036,p+o,300,.025,.11,yellow,false);
+      box(scene,p+o,.035,0,.11,.025,420,yellow,false);
+      box(scene,0,.036,p+o,420,.025,.11,yellow,false);
     }
-    for (const lane of [-3.35,3.35]) for(let z=-140;z<=140;z+=13) {
+    for (const lane of [-3.35,3.35]) for(let z=-200;z<=200;z+=13) {
       box(scene,p+lane,.034,z,.075,.022,5.2,white,false);
       box(scene,z,.035,p+lane,5.2,.022,.075,white,false);
     }
@@ -266,6 +266,29 @@ function createBuilding(x,z,index) {
   sign.position.set(0,2.72,d/2+.52);group.add(sign);
   box(group,0,.48,d/2+.29,w*.86,.18,.32,darkTrim,false);
 
+  // Deep window reveals, projecting sills and vertical mullions: these are real geometry,
+  // not just a flat window texture, and remain inexpensive through instancing.
+  const sillGeo=new THREE.BoxGeometry(2.18,.13,.34);
+  const sillInst=new THREE.InstancedMesh(sillGeo,trim,frames.length);
+  frames.forEach((p,i)=>{dummy.position.set(p.x,p.y-.91,p.z+.06);dummy.updateMatrix();sillInst.setMatrixAt(i,dummy.matrix);});
+  sillInst.castShadow=false;group.add(sillInst);
+  const mullionGeo=new THREE.BoxGeometry(.07,1.48,.1);
+  const mullions=new THREE.InstancedMesh(mullionGeo,darkTrim,frames.length);
+  frames.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z+.07);dummy.updateMatrix();mullions.setMatrixAt(i,dummy.matrix);});
+  mullions.castShadow=false;group.add(mullions);
+
+  // Projecting facade-mounted air conditioners beneath selected windows.
+  if(index%3===1) for(let r=0;r<rows;r++) {
+    const wx=winX[(r+index)%winX.length], wy=1.15+r*floorH-.98;
+    box(group,wx,wy,d/2+.48,1.05,.48,.48,mat(0x929b98),false);
+    for(let vent=0;vent<3;vent++) box(group,wx-.25+vent*.25,wy,d/2+.735,.045,.31,.035,darkTrim,false);
+  }
+  // Rainwater downpipes give corners a visible architectural edge.
+  for(const side of [-1,1]) {
+    cylinder(group,side*(w/2+.13),h/2+.2,d/2+.12,.055,.055,h+.1,darkTrim,8);
+    box(group,side*(w/2+.13),.2,d/2+.23,.11,.4,.12,darkTrim,false);
+  }
+
   // Selected buildings get projecting balconies with railings and visible supports.
   if(index%2===0) for(let floor=1;floor<floors;floor+=2) {
     const y=floor*floorH+1.1;
@@ -317,7 +340,7 @@ function createBuilding(x,z,index) {
 }
 function addCity() {
   let id=0;
-  const centers=[-110,-66,-22,22,66,110];
+  const centers=[-154,-110,-66,-22,22,66,110,154];
   for(const bx of centers) for(const bz of centers) {
     if(Math.abs(bx)===22 && Math.abs(bz)===22) continue;
     createBuilding(bx,bz,id++);
@@ -359,7 +382,7 @@ function addTree(x, z, scale = 1) {
 }
 
 function addStreetFurniture() {
-  for(let road=-3;road<=3;road++) for(const side of [-1,1]) for(let block=-2;block<=2;block++) {
+  for(let road=-4;road<=4;road++) for(const side of [-1,1]) for(let block=-3;block<=3;block++) {
     const x=road*44+side*10.1, z=block*44+22;
     cylinder(scene,x,3, z,.075,.11,6,mat(0x303a3d),10);
     box(scene,x+side*.55,5.85,z,.9,.11,.16,mat(0x303a3d));
@@ -406,11 +429,11 @@ function addTraffic() {
   const colors=[0xc64f43,0x315c82,0xd3b44c,0xddddda,0x343c42,0x4d8067];
   for(let i=0;i<8;i++){
     const lane=(i%2===0)?-3.1:3.1;
-    const car=makeCar(colors[i%colors.length],lane,-105+i*27, i%2===0?0:Math.PI);
+    const car=makeCar(colors[i%colors.length],lane,-175+i*48, i%2===0?0:Math.PI);
     traffic.push({mesh:car,dir:i%2===0?1:-1,speed:5+(i%3)*1.5,axis:"z"});
   }
   for(let i=0;i<4;i++){
-    const car=makeCar(colors[(i+2)%colors.length],-105+i*48,3.1,Math.PI/2);
+    const car=makeCar(colors[(i+2)%colors.length],-165+i*82,3.1,Math.PI/2);
     traffic.push({mesh:car,dir:1,speed:4.5+(i%2),axis:"x"});
   }
 }
@@ -463,7 +486,7 @@ function playPlayerAction(name) {
 }
 function setupLighting(){
   scene.background=new THREE.Color(0x8ed8ff);
-  scene.fog=new THREE.Fog(0x8ed8ff,145,330);
+  scene.fog=new THREE.Fog(0x8ed8ff,185,455);
   scene.add(new THREE.HemisphereLight(0xeaf7ff,0x65734f,1.55));
   const fill = new THREE.DirectionalLight(0xb8d9ff,0.55);
   fill.position.set(55,35,-70);
@@ -471,7 +494,7 @@ function setupLighting(){
   sun=new THREE.DirectionalLight(0xffedcf,3.1);
   sun.position.set(-65,95,50);sun.castShadow=true;
   sun.shadow.mapSize.set(quality.shadowSize,quality.shadowSize);
-  sun.shadow.camera.left=-82;sun.shadow.camera.right=82;sun.shadow.camera.top=82;sun.shadow.camera.bottom=-82;
+  sun.shadow.camera.left=-105;sun.shadow.camera.right=105;sun.shadow.camera.top=105;sun.shadow.camera.bottom=-105;
   sun.shadow.camera.near=1;sun.shadow.camera.far=220;
   sun.shadow.bias=-.00025;sun.shadow.normalBias=.035;
   scene.add(sun);
@@ -531,8 +554,8 @@ function update(dt){
   }
   traffic.forEach(t=>{
     t.mesh.position[t.axis]+=t.dir*t.speed*dt;
-    if(t.mesh.position[t.axis]>120)t.mesh.position[t.axis]=-120;
-    if(t.mesh.position[t.axis]<-120)t.mesh.position[t.axis]=120;
+    if(t.mesh.position[t.axis]>185)t.mesh.position[t.axis]=-185;
+    if(t.mesh.position[t.axis]<-185)t.mesh.position[t.axis]=185;
   });
   const desired=new THREE.Vector3(player.position.x+Math.sin(yaw)*8.2,player.position.y+4.3+pitch*4,player.position.z+Math.cos(yaw)*8.2);
   camera.position.lerp(desired,1-Math.pow(.001,dt));
