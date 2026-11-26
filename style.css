@@ -1,5 +1,5 @@
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;font-family:Inter,Arial,sans-serif;color:#fff;touch-action:none}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;background:#101820;font-family:Inter,Arial,sans-serif;color:#fff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-text-size-adjust:100%}
 #game{position:relative;width:100%;height:100%;overflow:hidden;background:#9fc5d1}
 canvas{display:block;width:100%;height:100%;outline:0}
 #hud{position:absolute;z-index:5;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 17px 14px;background:linear-gradient(180deg,rgba(7,14,20,.82),rgba(7,14,20,.18),transparent)}
@@ -21,3 +21,16 @@ canvas{display:block;width:100%;height:100%;outline:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 #error{position:absolute;z-index:20;left:12px;right:12px;top:45%;padding:16px;border-radius:12px;background:#541f25;color:#fff;font-size:12px}
 @media(min-width:700px){#joystick{left:34px;width:132px;height:132px}#stick{width:55px;height:55px}#run{right:38px;width:78px;height:78px}#mission{top:92px;left:24px}}
+
+/* Mobile rendering and safe-area polish */
+canvas{touch-action:none;will-change:transform}
+button{font:inherit;touch-action:none}
+@media(max-width:480px){
+#hud{padding-left:13px;padding-right:13px}
+#mission{top:82px;left:13px}
+#hint{top:160px;left:13px;max-width:calc(100vw - 26px);line-height:1.4}
+#joystick{left:18px;width:112px;height:112px}
+#stick{width:46px;height:46px}
+#run{right:20px;width:66px;height:66px}
+#look-hint{right:14px;max-width:145px}
+}
