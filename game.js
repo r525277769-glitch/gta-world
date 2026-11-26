@@ -52,7 +52,33 @@ function fitModel(source, target, maxHeight = 24, cloneSource = true) {
   return model;
 }
 function mat(color, roughness = 0.88, extra = {}) {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.02, ...extra });
+  // Bright cel-shaded materials give the city a playful animated-film look.
+  return new THREE.MeshToonMaterial({ color, ...extra });
+}
+function cartoonizeModel(root) {
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    const convert = source => {
+      if (!source || source.isMeshToonMaterial) return source;
+      const toon = new THREE.MeshToonMaterial({
+        color: source.color ? source.color.clone() : 0xffffff,
+        map: source.map || null,
+        alphaMap: source.alphaMap || null,
+        transparent: source.transparent || false,
+        opacity: source.opacity ?? 1,
+        side: source.side,
+        emissive: source.emissive ? source.emissive.clone() : 0x000000,
+        emissiveMap: source.emissiveMap || null
+      });
+      toon.vertexColors = source.vertexColors;
+      toon.skinning = source.skinning;
+      toon.morphTargets = source.morphTargets;
+      return toon;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
+    o.castShadow = quality.shadows;
+    o.receiveShadow = true;
+  });
 }
 function box(parent, x, y, z, w, h, d, material, cast = true) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
@@ -144,8 +170,13 @@ function createBuilding(x,z,index) {
   const w=13+(index%3)*2, d=12+(index%2)*2, floors=3+(index*7%5), h=floors*3.15;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
   const facade=mats.facades[index%mats.facades.length];
-  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,roughness:.92}));
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshToonMaterial({map:facade}));
   body.position.y=h/2+.22; body.castShadow=true; body.receiveShadow=true; group.add(body);
+  const outline=new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(w+.035,h+.035,d+.035),25),
+    new THREE.LineBasicMaterial({color:0x35434a,transparent:true,opacity:.48})
+  );
+  outline.position.y=h/2+.22; group.add(outline);
   box(group,0,h+.42,0,w+.55,.55,d+.55,mat(0x4b5354));
   box(group,0,.55,d/2+.08,w,.8,.2,mat(index%3===0?0x3b4e54:0x625c50));
   // Shopfront glazing and sign.
@@ -175,6 +206,7 @@ function createBuilding(x,z,index) {
     index % 4 === 2 ? "comercial/hotel.glb" : "residencial/predio_alto.glb";
   loadAsset(ASSET_ROOT + modelPath).then(gltf => {
     const imported = fitModel(gltf.scene, new THREE.Vector3(w, 24, d), 25);
+    cartoonizeModel(imported);
     group.clear(); group.add(imported);
   }).catch(err => console.warn("Building model fallback:", modelPath, err));
 }
@@ -211,6 +243,7 @@ function addTree(x,z,scale=1) {
   crown2.position.set(.7,3.6,.2);crown2.castShadow=quality.shadows;group.add(crown2);
   loadAsset(ASSET_ROOT + "vegetacao/ipe_amarelo.glb").then(gltf => {
     const imported = fitModel(gltf.scene, new THREE.Vector3(3.8, 7, 3.8), 7);
+    cartoonizeModel(imported);
     group.clear(); group.add(imported);
   }).catch(err => console.warn("Tree model fallback:", err));
 }
@@ -260,6 +293,7 @@ function makeCar(color,x,z,rotation=0) {
   const modelPath = Math.random() < .18 ? "veiculos/taxi.glb" : "veiculos/carro.glb";
   loadAsset(ASSET_ROOT + modelPath).then(gltf => {
     const imported = fitModel(gltf.scene, new THREE.Vector3(2.2, 1.8, 4.25), 1.8);
+    cartoonizeModel(imported);
     group.clear(); group.add(imported);
   }).catch(err => console.warn("Car model fallback:", err));
   return group;
@@ -301,6 +335,7 @@ function createPlayer(){
   player.position.set(0,.15,16);
   loadAsset(KENNEY_ROOT + "character-male-c.glb").then(gltf => {
     const imported = fitModel(gltf.scene, new THREE.Vector3(1.2, 2.2, 1.2), 2.15, false);
+    cartoonizeModel(imported);
     player.clear(); player.add(imported); player.userData.imported = true;
     if (gltf.animations && gltf.animations.length) {
       playerMixer = new THREE.AnimationMixer(imported);
@@ -323,10 +358,10 @@ function playPlayerAction(name) {
   activePlayerAction = next;
 }
 function setupLighting(){
-  scene.background=new THREE.Color(palette.sky);
-  scene.fog=new THREE.Fog(0xa7cbd8,125,310);
-  scene.add(new THREE.HemisphereLight(0xe9f5ff,0x687052,1.75));
-  sun=new THREE.DirectionalLight(0xffe5bd,2.5);
+  scene.background=new THREE.Color(0x8ed8ff);
+  scene.fog=new THREE.Fog(0x8ed8ff,145,330);
+  scene.add(new THREE.HemisphereLight(0xffffff,0x82915b,2.05));
+  sun=new THREE.DirectionalLight(0xfff1c7,2.8);
   sun.position.set(-65,95,50);sun.castShadow=true;
   sun.shadow.mapSize.set(1536,1536);
   sun.shadow.camera.left=-115;sun.shadow.camera.right=115;sun.shadow.camera.top=115;sun.shadow.camera.bottom=-115;
@@ -338,7 +373,7 @@ function resize(){
   if(!renderer||!camera)return;
   camera.aspect=root.clientWidth/root.clientHeight;camera.updateProjectionMatrix();
   renderer.setSize(root.clientWidth,root.clientHeight,false);
-  renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.65));
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1, matchMedia("(max-width: 700px)").matches ? 1.25 : 1.6));
 }
 function blocked(x,z){
   for(const b of colliders) if(Math.abs(x-b.x)<b.w/2+.55&&Math.abs(z-b.z)<b.d/2+.55)return true;
@@ -404,10 +439,10 @@ function animate(){
 try{
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(62,1,.1,500);
-  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+   renderer=new THREE.WebGLRenderer({antialias:!(matchMedia("(max-width: 700px)").matches),powerPreference:"high-performance",alpha:false});
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.12;
+  renderer.toneMappingExposure=1.28;
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   root.insertBefore(renderer.domElement,root.firstChild);
   clock=new THREE.Clock();
