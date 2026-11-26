@@ -23,6 +23,9 @@ let activePlayerAction = null;
 const ASSET_ROOT = "https://raw.githubusercontent.com/kayquer/kit-cidade-lowpoly/main/models/";
 const KENNEY_ROOT = "https://raw.githubusercontent.com/shorepine/kenney/main/3d/mini-characters/";
 const mats = {};
+const quality = {
+  shadows: !matchMedia("(max-width: 700px)").matches
+};
 
 const palette = {
   asphalt: 0x30383d, concrete: 0xb8b5aa, curb: 0xd0c8b7,
