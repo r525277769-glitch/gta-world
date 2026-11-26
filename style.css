@@ -42,3 +42,10 @@ button{font:inherit;touch-action:none}
 #stick,#run{box-shadow:0 5px 0 #8c5a24,0 8px 18px #0005}
 #run{border:3px solid #fff}
 #hint{border:1px solid #ffffff55;border-radius:12px}
+
+#wallet{position:absolute;z-index:5;top:calc(74px + env(safe-area-inset-top));right:14px;display:flex;flex-direction:column;gap:4px;align-items:flex-end;padding:9px 12px;border-radius:12px;background:#101a22c9;border:1px solid #ffffff35;backdrop-filter:blur(8px);font-size:12px;box-shadow:0 5px 18px #0003}
+#wallet b{font-size:14px;color:#c8ff6b}#wallet span{font-size:9px;color:#63dfff;letter-spacing:1px}
+#action{position:absolute;right:24px;bottom:112px;min-width:132px;height:44px;padding:0 13px;border-radius:12px;border:2px solid #ffffff80;background:#26343bdf;color:#fff;font-size:10px;font-weight:900;letter-spacing:.7px;pointer-events:auto;opacity:.58;backdrop-filter:blur(8px)}
+#action.available{opacity:1;background:linear-gradient(135deg,#e5f66a,#ffb347);color:#263018;border-color:#fff;box-shadow:0 4px 0 #8c6427,0 8px 18px #0005}
+@media(max-width:480px){#wallet{top:calc(75px + env(safe-area-inset-top));right:10px}#action{right:17px;bottom:104px;min-width:124px;height:42px}}
+@media(min-width:700px){#action{right:38px;bottom:130px}}
