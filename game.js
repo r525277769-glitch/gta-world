@@ -206,7 +206,12 @@ function addRoads() {
   }
 }
 function createBuilding(x,z,index) {
-  const w=13+(index%3)*2, d=12+(index%2)*2, floors=3+(index*7%5), floorH=3.15, h=floors*floorH;
+  const district = x >= 110 ? "industrial" : x <= -110 ? "residential" : (Math.abs(x) <= 66 && Math.abs(z) <= 66 ? "business" : "commercial");
+  const isTower = district === "business";
+  const w = district === "industrial" ? 16+(index%2)*2 : 13+(index%3)*2;
+  const d = district === "industrial" ? 16 : 12+(index%2)*2;
+  const floors = isTower ? 12+(index%6) : district === "residential" ? 2+(index%3) : district === "industrial" ? 2+(index%2) : 4+(index*7%4);
+  const floorH=3.15, h=floors*floorH;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
   const facade=mats.facades[index%mats.facades.length];
   const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,roughness:.9,metalness:.02}));
@@ -260,7 +265,8 @@ function createBuilding(x,z,index) {
   const sc=signCanvas.getContext("2d");
   sc.fillStyle=["#244653","#754532","#315b45","#534365"][index%4];sc.fillRect(0,0,512,128);
   sc.fillStyle="#f4ead4";sc.font="bold 54px Arial";sc.textAlign="center";sc.textBaseline="middle";
-  sc.fillText(["MARKET","DOWNTOWN","CAFE","AUTO SHOP"][index%4],256,66);
+  const signWords = district === "industrial" ? ["LOGISTICS","WAREHOUSE","WORKSHOP","DEPOT"] : district === "residential" ? ["RESIDENCE","APARTMENTS","HOMES","LIVING"] : district === "business" ? ["FINANCE","OFFICES","TOWER","BUSINESS"] : ["MARKET","DOWNTOWN","CAFE","AUTO SHOP"];
+  sc.fillText(signWords[index%4],256,66);
   const signTex=new THREE.CanvasTexture(signCanvas);signTex.colorSpace=THREE.SRGBColorSpace;
   const sign=new THREE.Mesh(new THREE.PlaneGeometry(w*.82,.39),new THREE.MeshBasicMaterial({map:signTex}));
   sign.position.set(0,2.72,d/2+.52);group.add(sign);
@@ -300,6 +306,39 @@ function createBuilding(x,z,index) {
       box(group,bx-w*.17,y+.2,d/2+.48,.07,.42,.08,darkTrim,false);
       box(group,bx+w*.17,y+.2,d/2+.48,.07,.42,.08,darkTrim,false);
     }
+  }
+
+  // District-specific silhouettes make the expanded map read as distinct neighborhoods.
+  if(isTower) {
+    // Tall glass office towers: corner ribs, crown cap and a red aviation beacon.
+    for(const side of [-1,1]) for(const front of [-1,1]) {
+      box(group,side*(w/2-.18),h/2+.22,front*(d/2+.12),.24,h+.1,.22,mat(index%2?0x536b75:0x334f60),false);
+    }
+    box(group,0,h+.62,0,w+.9,.72,d+.9,mat(0x354b59),false);
+    box(group,0,h+1.02,0,w*.55,.12,d*.55,mat(0x9bb7b9),false);
+    cylinder(group,0,h+1.55,0,.07,.07,1.0,mat(0xd9d7ce),8);
+    const beacon=new THREE.Mesh(new THREE.SphereGeometry(.16,8,8),mat(0xff3b32,.3,{emissive:0xd71912,emissiveIntensity:.8}));
+    beacon.position.set(0,h+2.1,0);group.add(beacon);
+  }
+  if(district==="industrial") {
+    // Industrial roof plant, loading-bay doors and two exhaust stacks.
+    for(let bay=0;bay<2;bay++) {
+      const bx=(bay-.5)*w*.48;
+      box(group,bx,1.55,d/2+.28,w*.38,2.35,.2,mat(0x46565a),false);
+      box(group,bx,1.55,d/2+.4,w*.29,2.0,.08,mat(0x8a9a98),false);
+      for(let slat=0;slat<5;slat++) box(group,bx,0.8+slat*.32,d/2+.46,w*.28,.055,.04,darkTrim,false);
+    }
+    for(let stack=0;stack<2;stack++) {
+      const sx=(stack-.5)*w*.55;
+      cylinder(group,sx,h+1.5,-d*.2,.42,.58,3.0,mat(0x777e7b),12);
+      cylinder(group,sx,h+3.05,-d*.2,.48,.48,.18,darkTrim,12);
+    }
+  }
+  if(district==="residential") {
+    // Shorter residential blocks get a pitched, colored roof and small balconies.
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*.78,2.4,4),mat(index%2?0x765b4a:0x59666a));
+    roof.rotation.y=Math.PI/4;roof.position.set(0,h+1.25,0);roof.castShadow=quality.shadows;group.add(roof);
+    for(const side of [-1,1]) box(group,side*w*.29,1.65,d/2+.45,w*.28,.12,.72,mat(0xb6aa98),false);
   }
 
   // Roof parapets, vents and HVAC equipment.
