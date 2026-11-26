@@ -50,7 +50,7 @@ let adaptiveCheckTime = 0;
 
 const palette = {
   asphalt: 0x30383d, concrete: 0xb8b5aa, curb: 0xd0c8b7,
-  grass: 0x718c69, sky: 0xa7cbd8
+  grass: 0x79b94e, sky: 0x72caff
 };
 
 function loadAsset(url) {
@@ -144,7 +144,7 @@ function canvasTexture(draw, repeatX = 1, repeatY = 1) {
 function makeTextures() {
   // High-resolution procedural materials: layered grass, stone paving and facade finishes.
   const grassTexture = canvasTexture((c,w,h) => {
-    c.fillStyle = "#667f55"; c.fillRect(0,0,w,h);
+    c.fillStyle = "#78ad45"; c.fillRect(0,0,w,h);
     // Irregular color patches prevent the ground from reading as a flat green carpet.
     for(let i=0;i<1700;i++){
       const r=8+Math.random()*58, x=Math.random()*w, y=Math.random()*h;
@@ -205,8 +205,8 @@ function makeTextures() {
   mats.dark = mat(0x20272c);
   mats.glass = mat(0x416675,.24,{metalness:.35});
   mats.glassLight = mat(0x9ac4c8,.28,{metalness:.2});
-  mats.leaf=[mat(0x416c43),mat(0x5d824b),mat(0x78945a)];
-  mats.trunk=mat(0x76553d);
+  mats.leaf=[mat(0x287a35),mat(0x49a83f),mat(0x78c84b)];
+  mats.trunk=mat(0x81502d);
   mats.lamp=mat(0xffe6a3,.35,{emissive:0xffbd57,emissiveIntensity:.45});
 
   mats.facades=[0xb9a58f,0x9aa9a7,0xc9c0ad,0x9caaa9,0xc1b29f,0x858f94,0xd0c5b1].map((color,index)=>
@@ -464,7 +464,7 @@ function addParkGrass(cx,cz) {
   const geo=new THREE.BufferGeometry();
   geo.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));
   geo.setIndex(indices);geo.computeVertexNormals();
-  const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,side:THREE.DoubleSide});
+  const material=new THREE.MeshToonMaterial({color:0xffffff,gradientMap:toonGradient,side:THREE.DoubleSide});
   const count=isMobile?1050:1650,field=new THREE.InstancedMesh(geo,material,count),dummy=new THREE.Object3D();
   const colors=[new THREE.Color(0x527b38),new THREE.Color(0x6f9844),new THREE.Color(0x91ad53),new THREE.Color(0x3e6732),new THREE.Color(0xb1bd68)];
   let placed=0,tries=0;
@@ -729,13 +729,13 @@ function playPlayerAction(name) {
   activePlayerAction = next;
 }
 function setupLighting(){
-  scene.background=new THREE.Color(0x65c8ff);
-  scene.fog=new THREE.Fog(0x65c8ff,205,490);
-  scene.add(new THREE.HemisphereLight(0xf4fbff,0x78945b,1.9));
-  const fill = new THREE.DirectionalLight(0xc9e8ff,0.8);
+  scene.background=new THREE.Color(0x69c9ff);
+  scene.fog=new THREE.Fog(0x69c9ff,245,560);
+  scene.add(new THREE.HemisphereLight(0xffffff,0x8ab85c,2.25));
+  const fill = new THREE.DirectionalLight(0xd8efff,1.05);
   fill.position.set(55,35,-70);
   scene.add(fill);
-  sun=new THREE.DirectionalLight(0xfff1cf,2.5);
+  sun=new THREE.DirectionalLight(0xfff4d6,3.1);
   sun.position.set(-65,95,50);sun.castShadow=true;
   sun.shadow.mapSize.set(quality.shadowSize,quality.shadowSize);
   sun.shadow.radius = isMobile ? 2 : 3;
@@ -743,6 +743,22 @@ function setupLighting(){
   sun.shadow.camera.near=1;sun.shadow.camera.far=220;
   sun.shadow.bias=-.00025;sun.shadow.normalBias=.035;
   scene.add(sun);
+}
+
+function addSkyDecor(){
+  // Soft, chunky cloud clusters create the bright toy-like battle-royale skyline.
+  const cloudMat=new THREE.MeshToonMaterial({color:0xffffff,gradientMap:toonGradient});
+  const cloudGeo=new THREE.SphereGeometry(1,12,9);
+  const cloudSpots=[[-175,47,-145],[-92,58,-188],[18,52,-205],[142,61,-168],[205,49,-72],[-210,55,28],[-125,63,185],[72,54,196],[190,58,138]];
+  for(let i=0;i<cloudSpots.length;i++){
+    const [x,y,z]=cloudSpots[i],g=new THREE.Group();g.position.set(x,y,z);g.scale.setScalar(1.0+(i%3)*.18);
+    for(const [ox,oy,oz,sx,sy,sz] of [[0,0,0,7,3.1,4.2],[5,1,0,5.5,3.7,4.1],[-5,.4,.4,5.1,3,3.8],[1,2.1,-.5,4.5,3.2,3.8]]){
+      const puff=new THREE.Mesh(cloudGeo,cloudMat);puff.position.set(ox,oy,oz);puff.scale.set(sx,sy,sz);puff.castShadow=false;g.add(puff);
+    }
+    scene.add(g);
+  }
+  const sunDisc=new THREE.Mesh(new THREE.CircleGeometry(10,32),new THREE.MeshBasicMaterial({color:0xfff1b0}));
+  sunDisc.position.set(-155,112,-235);sunDisc.lookAt(0,45,0);scene.add(sunDisc);
 }
 
 function resize(){
@@ -847,13 +863,13 @@ try{
   camera=new THREE.PerspectiveCamera(62,1,.1,500);
   renderer=new THREE.WebGLRenderer({antialias:!isMobile,powerPreference:"high-performance",alpha:false});
   renderer.outputColorSpace=THREE.SRGBColorSpace;
-  renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.32;
+  renderer.toneMapping=THREE.NoToneMapping;
+  renderer.toneMappingExposure=1.0;
   renderer.physicallyCorrectLights = true;
   renderer.shadowMap.enabled=quality.shadows;renderer.shadowMap.type=isMobile?THREE.BasicShadowMap:THREE.PCFSoftShadowMap;
   root.insertBefore(renderer.domElement,root.firstChild);
   clock=new THREE.Clock();
-  createToonGradient();makeTextures();setupLighting();addRoads();addCity();addStreetFurniture();addTraffic();createPlayer();setupWorldActivities();setupControls();resize();
+  createToonGradient();makeTextures();setupLighting();addSkyDecor();addRoads();addCity();addStreetFurniture();addTraffic();createPlayer();setupWorldActivities();setupControls();resize();
   window.addEventListener("resize",resize);
   camera.position.set(0,5,24);camera.lookAt(0,1.5,16);
   animate();
