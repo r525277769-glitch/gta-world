@@ -736,7 +736,7 @@ function setupWorldActivities(){
   homeMarker.userData.isHome=true;
   // Three public parking hubs with marked bays and rentable-looking cars.
   parkingCars=[];
-  const lots=[{x:22,z:-22,colors:[0x2474a8,0xd2a53c]},{x:-22,z:22,colors:[0xc64f43,0x4d8067]},{x:170,z:-110,colors:[0x7c6acb,0xe4e5e1]}];
+  const lots=[{x:22,z:-22,colors:[0x2474a8,0xd2a53c]},{x:-22,z:22,colors:[0xc64f43,0x4d8067]},{x:-22,z:-22,colors:[0x7c6acb,0xe4e5e1]}];
   lots.forEach((lot,li)=>{
     const pad=new THREE.Mesh(new THREE.PlaneGeometry(13,9),mats.sidewalk);pad.rotation.x=-Math.PI/2;pad.position.set(lot.x,.055,lot.z);scene.add(pad);
     for(let k=0;k<2;k++){
