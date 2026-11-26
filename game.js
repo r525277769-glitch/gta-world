@@ -660,7 +660,7 @@ function interact(){
     missionState="return";missionPackage.visible=false;
     hint.textContent="ПОСЫЛКА ПОЛУЧЕНА • ВЕРНИСЬ К ЗАКАЗЧИКУ";
   }else if(type==="npc"&&missionState==="return"){
-    missionState="done";cash+=5000;
+    missionState="done";cash+=5000;npc.userData.marker.visible=false;
     hint.textContent="ЗАДАНИЕ ВЫПОЛНЕНО • +$5,000";
   }else if(type==="gramm"){
     gramm+=100;grammPickup.visible=false;
@@ -764,7 +764,7 @@ function setupControls(){
   runButton.addEventListener("pointerup",stopRun);runButton.addEventListener("pointercancel",stopRun);runButton.addEventListener("pointerleave",stopRun);
   actionButton.addEventListener("pointerdown",e=>{e.preventDefault();interact();});
   window.addEventListener("keydown",e=>{if(e.key.toLowerCase()==="e")interact();});
-  root.addEventListener("pointerdown",e=>{if(joystick.contains(e.target)||e.target===runButton)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
+  root.addEventListener("pointerdown",e=>{if(joystick.contains(e.target)||e.target===runButton||e.target===actionButton)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
   root.addEventListener("pointermove",e=>{if(e.pointerId!==lookPointer)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.0045;pitch=THREE.MathUtils.clamp(pitch+dy*.0028,-.18,.78);});
   const endLook=e=>{if(e.pointerId===lookPointer)lookPointer=null;};
   root.addEventListener("pointerup",endLook);root.addEventListener("pointercancel",endLook);
