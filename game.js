@@ -206,44 +206,115 @@ function addRoads() {
   }
 }
 function createBuilding(x,z,index) {
-  const w=13+(index%3)*2, d=12+(index%2)*2, floors=3+(index*7%5), h=floors*3.15;
+  const w=13+(index%3)*2, d=12+(index%2)*2, floors=3+(index*7%5), floorH=3.15, h=floors*floorH;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
   const facade=mats.facades[index%mats.facades.length];
   const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,roughness:.9,metalness:.02}));
   body.position.y=h/2+.22; body.castShadow=true; body.receiveShadow=true; group.add(body);
-  const outline=new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(w+.035,h+.035,d+.035),25),
-    new THREE.LineBasicMaterial({color:0x35434a,transparent:true,opacity:.48})
-  );
-  outline.position.y=h/2+.22; group.add(outline);
-  box(group,0,h+.42,0,w+.55,.55,d+.55,mat(0x4b5354));
-  box(group,0,.55,d/2+.08,w,.8,.2,mat(index%3===0?0x3b4e54:0x625c50));
-  // Shopfront glazing and sign.
-  const shopGlass=box(group,0,1.65,d/2+.19,w*.72,1.7,.12,mats.glassLight,false);
-  box(group,0,2.65,d/2+.28,w*.8,.34,.18,mat([0x263d48,0x704b3e,0x3f6253][index%3]));
-  // Balconies and facade ledges on alternating buildings.
-  if(index%2===0){
-    for(let floor=1;floor<floors;floor+=2){
-      const y=floor*3.15+1.05;
-      for(let side of [-1,1]){
-        box(group,side*w*.25,y,d/2+.42,w*.36,.12,.9,mat(0x8b8e87));
-        box(group,side*w*.25,y+.42,d/2+.82,w*.36,.72,.08,mat(0x5b6a69));
-      }
+
+  const trim=mat(0xd4c9b7), darkTrim=mat(0x465257), glass=mat(index%4===0?0x8bb7c2:0x527583,.2,{metalness:.28}), glassLit=mat(0xe7c98d,.28,{emissive:0x6b4a20,emissiveIntensity:.12});
+  const frameGeo=new THREE.BoxGeometry(2.05,1.72,.16), paneGeo=new THREE.BoxGeometry(1.78,1.45,.08);
+  const cols=3, rows=Math.max(2,floors-1), winX=[];
+  for(let c=0;c<cols;c++) winX.push((c-(cols-1)/2)*(w/(cols+.45)));
+  const frames=[], panes=[];
+  for(let r=0;r<rows;r++) for(const wx of winX) {
+    const wy=1.15+r*floorH;
+    frames.push(new THREE.Vector3(wx,wy,d/2+.11));
+    panes.push(new THREE.Vector3(wx,wy,d/2+.205));
+  }
+  const frameInst=new THREE.InstancedMesh(frameGeo,trim,frames.length);
+  const paneInst=new THREE.InstancedMesh(paneGeo,glass,panes.length);
+  const dummy=new THREE.Object3D();
+  frames.forEach((p,i)=>{dummy.position.copy(p);dummy.updateMatrix();frameInst.setMatrixAt(i,dummy.matrix);});
+  panes.forEach((p,i)=>{dummy.position.copy(p);dummy.updateMatrix();paneInst.setMatrixAt(i,dummy.matrix);});
+  frameInst.castShadow=false; paneInst.castShadow=false; group.add(frameInst,paneInst);
+
+  // Side windows add depth to the building when viewed from the street corners.
+  const sideFrameGeo=new THREE.BoxGeometry(.16,1.72,1.85), sidePaneGeo=new THREE.BoxGeometry(.08,1.45,1.58);
+  const sideFrames=[],sidePanes=[];
+  for(let r=0;r<rows;r++) for(const side of [-1,1]) {
+    for(let c=0;c<2;c++) {
+      const wz=(c-.5)*(d/2.3), wy=1.15+r*floorH;
+      sideFrames.push(new THREE.Vector3(side*(w/2+.11),wy,wz));
+      sidePanes.push(new THREE.Vector3(side*(w/2+.205),wy,wz));
     }
   }
-  // Rooftop air-conditioning units, vents and water tanks.
-  for(let a=0;a<2;a++){
-    const unit=box(group,(a-.5)*w*.35,h+.95,-d*.18,2.1,1.05,1.8,mat(0x737d7d));
-    box(group,(a-.5)*w*.35,h+1.52,-d*.18,1.4,.12,1.25,mat(0x454d50));
-  }
-  if(index%3===0){
-    cylinder(group,w*.27,h+1.3,d*.15,.65,.65,2.1,mat(0x8d9b98),12);
-  }
-  colliders.push({x,z,w:w+1.3,d:d+1.3});
-  // Keep the detailed procedural facade instead of replacing it with a much simpler low-poly placeholder.
-  // Recessed windows, ledges and rooftop equipment remain crisp on mobile screens.
-}
+  const sf=new THREE.InstancedMesh(sideFrameGeo,trim,sideFrames.length);
+  const sp=new THREE.InstancedMesh(sidePaneGeo,glass,sidePanes.length);
+  sideFrames.forEach((p,i)=>{dummy.position.copy(p);dummy.updateMatrix();sf.setMatrixAt(i,dummy.matrix);});
+  sidePanes.forEach((p,i)=>{dummy.position.copy(p);dummy.updateMatrix();sp.setMatrixAt(i,dummy.matrix);});
+  sf.castShadow=false;sp.castShadow=false;group.add(sf,sp);
 
+  // Vertical facade piers and floor bands make the silhouette less like a plain box.
+  for(let c=0;c<=cols;c++) {
+    const px=(c-(cols/2))*(w/(cols+.45));
+    box(group,px,h/2+.22,d/2+.25,.13,h,.12,darkTrim,false);
+  }
+  for(let r=0;r<=floors;r++) box(group,0,r*floorH+.28,d/2+.27,w+.35,.13,.16,trim,false);
+
+  // Street-level shopfront with a distinct signboard and illuminated display windows.
+  const shopWidth=w*.78;
+  box(group,0,1.55,d/2+.28,shopWidth,1.72,.18,glassLit,false);
+  box(group,0,2.72,d/2+.39,w*.88,.48,.24,mat([0x284b5c,0x704638,0x37614d,0x5c4a70][index%4]),false);
+  const signCanvas=document.createElement("canvas"); signCanvas.width=512; signCanvas.height=128;
+  const sc=signCanvas.getContext("2d");
+  sc.fillStyle=["#244653","#754532","#315b45","#534365"][index%4];sc.fillRect(0,0,512,128);
+  sc.fillStyle="#f4ead4";sc.font="bold 54px Arial";sc.textAlign="center";sc.textBaseline="middle";
+  sc.fillText(["MARKET","DOWNTOWN","CAFE","AUTO SHOP"][index%4],256,66);
+  const signTex=new THREE.CanvasTexture(signCanvas);signTex.colorSpace=THREE.SRGBColorSpace;
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(w*.82,.39),new THREE.MeshBasicMaterial({map:signTex}));
+  sign.position.set(0,2.72,d/2+.52);group.add(sign);
+  box(group,0,.48,d/2+.29,w*.86,.18,.32,darkTrim,false);
+
+  // Selected buildings get projecting balconies with railings and visible supports.
+  if(index%2===0) for(let floor=1;floor<floors;floor+=2) {
+    const y=floor*floorH+1.1;
+    for(const side of [-1,1]) {
+      const bx=side*w*.25;
+      box(group,bx,y,d/2+.48,w*.34,.13,.95,trim,false);
+      box(group,bx,y+.39,d/2+.91,w*.34,.08,.08,darkTrim,false);
+      for(let k=-2;k<=2;k++) box(group,bx+k*w*.065,y+.2,d/2+.91,.055,.38,.055,darkTrim,false);
+      box(group,bx-w*.17,y+.2,d/2+.48,.07,.42,.08,darkTrim,false);
+      box(group,bx+w*.17,y+.2,d/2+.48,.07,.42,.08,darkTrim,false);
+    }
+  }
+
+  // Roof parapets, vents and HVAC equipment.
+  box(group,0,h+.47,0,w+.5,.5,d+.5,darkTrim,false);
+  box(group,0,h+.74,0,w-.2,.12,d-.2,mat(0x777d78),false);
+  for(let side of [-1,1]) {
+    box(group,side*(w/2-.12),h+.78,0,.2,.58,d+.25,trim,false);
+    box(group,0,h+.78,side*(d/2-.12),w+.25,.58,.2,trim,false);
+  }
+  for(let unit=0;unit<2;unit++) {
+    const ux=(unit-.5)*w*.38, uz=-d*.18;
+    box(group,ux,h+1.2,uz,2.25,1.05,1.85,mat(0x737d7d),false);
+    box(group,ux,h+1.76,uz,1.55,.12,1.35,darkTrim,false);
+    for(let vent=0;vent<4;vent++) box(group,ux-0.7+vent*.46,h+1.2,uz+.94,.12,.68,.06,mat(0x4a5557),false);
+  }
+  if(index%3===0) {
+    cylinder(group,w*.27,h+1.2,d*.17,.68,.68,1.9,mat(0x899895),14);
+    cylinder(group,w*.27,h+2.2,d*.17,.12,.12,.25,darkTrim,10);
+  }
+  // Fire escape ladder on selected side walls for a lived-in city feel.
+  if(index%4===1) {
+    const side=w/2+.25;
+    for(let r=0;r<floors;r++) {
+      box(group,side,r*floorH+1.1,0,.1,.1,d*.62,darkTrim,false);
+      for(let zStep=-2;zStep<=2;zStep++) box(group,side,r*floorH+1.3,zStep*1.05,.07,.48,.07,darkTrim,false);
+    }
+    for(const zSide of [-d*.31,d*.31]) box(group,side,h/2+.3,zSide,.09,h,.09,darkTrim,false);
+  }
+
+  colliders.push({x,z,w:w+1.3,d:d+1.3});
+  if(index%5===0) {
+    // Small street tree in a planter, positioned within the building setback.
+    const planter=box(group,-w*.38,.32,d/2+2.0,1.5,.55,1.5,mat(0x77786b),false);
+    const trunk=cylinder(group,-w*.38,1.45,d/2+2.0,.13,.19,2.3,mats.trunk,8);
+    const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.05,1),mats.leaf[index%3]);
+    crown.position.set(-w*.38,2.65,d/2+2.0);crown.scale.set(1,1.15,1);crown.castShadow=quality.shadows;group.add(crown);
+  }
+}
 function addCity() {
   let id=0;
   const centers=[-110,-66,-22,22,66,110];
