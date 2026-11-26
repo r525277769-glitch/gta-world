@@ -237,62 +237,89 @@ function createBuilding(x,z,index) {
 }
 
 function addCity() {
-  let id=0;
-  for(let gx=-2;gx<=2;gx++){
-    for(let gz=-2;gz<=2;gz++){
-      if(gx===0&&gz===0) continue;
-      const bx=gx*44, bz=gz*44;
-      createBuilding(bx+(gx<0?-18:18),bz+(gz<0?-18:18),id++);
-      if((gx+gz)%2===0){
-        createBuilding(bx+(gx<0? -5:5),bz+(gz<0?5:-5),id++);
-      }
+  // Buildings sit in the middle of city blocks, never inside the road corridors.
+  // The four central blocks are left open to form one continuous town square.
+  let id = 0;
+  const blockCenters = [-110, -66, -22, 22, 66, 110];
+  for (const bx of blockCenters) {
+    for (const bz of blockCenters) {
+      if (Math.abs(bx) <= 22 && Math.abs(bz) <= 22) continue;
+      createBuilding(bx, bz, id++);
     }
   }
-  // Pocket park around the central fountain.
-  box(scene,0,.08,0,31,.16,31,mat(0xc9bda5),false);
-  const ring=new THREE.Mesh(new THREE.CylinderGeometry(4.5,4.9,.8,12),mat(0x879b9b));
-  ring.position.set(0,.48,0); ring.castShadow=quality.shadows; scene.add(ring);
-  const water=new THREE.Mesh(new THREE.CylinderGeometry(3.9,3.9,.1,24),mat(0x3e9aab,.22,{metalness:.25}));
-  water.position.set(0,.93,0); water.castShadow=false; scene.add(water);
-  cylinder(scene,0,1.55,0,.18,.28,1.2,mat(0xc8d8d4));
-  const spray=new THREE.Mesh(new THREE.SphereGeometry(.35,10,8),mat(0x9ce5e8,.2,{transparent:true,opacity:.8}));
-  spray.position.set(0,2.2,0);spray.castShadow=false;scene.add(spray);
+
+  // A clearly bounded central pedestrian plaza.
+  const plaza = new THREE.Mesh(
+    new THREE.PlaneGeometry(38, 38),
+    mats.sidewalk
+  );
+  plaza.rotation.x = -Math.PI / 2;
+  plaza.position.y = .025;
+  scene.add(plaza);
+  box(scene, 0, .08, 0, 34, .16, 34, mat(0xc9bda5), false);
+
+  // Trees are deliberately confined to landscaped plaza corners.
+  for (const [x, z] of [[-12, -12], [12, -12], [-12, 12], [12, 12]]) {
+    addTree(x, z, .72);
+  }
+
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.9, .8, 16), mat(0x879b9b));
+  ring.position.set(0, .48, 0); ring.castShadow = quality.shadows; scene.add(ring);
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(3.9, 3.9, .1, 32), mat(0x3e9aab, .22, { metalness: .25 }));
+  water.position.set(0, .93, 0); water.castShadow = false; scene.add(water);
+  cylinder(scene, 0, 1.55, 0, .18, .28, 1.2, mat(0xc8d8d4));
+  const spray = new THREE.Mesh(new THREE.SphereGeometry(.35, 12, 10), mat(0x9ce5e8, .2, { transparent: true, opacity: .8 }));
+  spray.position.set(0, 2.2, 0); spray.castShadow = false; scene.add(spray);
 }
 
-function addTree(x,z,scale=1) {
-  const group=new THREE.Group();group.position.set(x,0,z);group.scale.setScalar(scale);scene.add(group);
-  cylinder(group,0,1.35,0,.25,.38,2.7,mats.trunk,7);
-  const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.8,1),mats.leaf[Math.floor(Math.abs(x+z))%3]);
-  crown.position.y=3.25;crown.scale.set(1,1.25,.95);crown.castShadow=true;group.add(crown);
-  const crown2=new THREE.Mesh(new THREE.IcosahedronGeometry(1.1,0),mats.leaf[1]);
-  crown2.position.set(.7,3.6,.2);crown2.castShadow=quality.shadows;group.add(crown2);
-  loadAsset(ASSET_ROOT + "vegetacao/ipe_amarelo.glb").then(gltf => {
-    const imported = fitModel(gltf.scene, new THREE.Vector3(3.8, 7, 3.8), 7);
-    cartoonizeModel(imported);
-    group.clear(); group.add(imported);
-  }).catch(err => console.warn("Tree model fallback:", err));
+function addTree(x, z, scale = 1) {
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+  group.scale.setScalar(scale);
+  scene.add(group);
+  cylinder(group, 0, 1.35, 0, .25, .38, 2.7, mats.trunk, 9);
+  const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1.8, 2), mats.leaf[Math.floor(Math.abs(x + z)) % 3]);
+  crown.position.y = 3.25;
+  crown.scale.set(1, 1.25, .95);
+  crown.castShadow = quality.shadows;
+  crown.receiveShadow = true;
+  group.add(crown);
+  const crown2 = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 1), mats.leaf[1]);
+  crown2.position.set(.7, 3.6, .2);
+  crown2.castShadow = quality.shadows;
+  group.add(crown2);
 }
+
 function addStreetFurniture() {
-  for(let road=-2;road<=2;road++){
-    for(let side of [-1,1]){
-      for(let k=-2;k<=2;k++){
-        const x=road*44+side*10.5, z=k*44+((road+k)%2)*8;
-        // lamp post
-        cylinder(scene,x,3.2,z,.09,.13,6.4,mat(0x343d3d),8);
-        box(scene,x+.62,6.25,z,.95,.12,.18,mat(0x343d3d));
-        const bulb=new THREE.Mesh(new THREE.SphereGeometry(.19,8,6),mats.lamp);
-        bulb.position.set(x+1.05,6.12,z);bulb.castShadow=false;scene.add(bulb);
-        if(k%2===0) addTree(x+side*3,z+5,.8);
+  // Street lamps are placed on the sidewalk edge, outside the 14-unit carriageway.
+  for (let road = -3; road <= 3; road++) {
+    for (const side of [-1, 1]) {
+      for (let block = -2; block <= 2; block++) {
+        const x = road * 44 + side * 9.8;
+        const z = block * 44 + 22;
+        cylinder(scene, x, 3.2, z, .09, .13, 6.4, mat(0x343d3d), 9);
+        box(scene, x + side * .62, 6.25, z, .95, .12, .18, mat(0x343d3d));
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(.19, 10, 8), mats.lamp);
+        bulb.position.set(x + side * 1.05, 6.12, z);
+        bulb.castShadow = false;
+        scene.add(bulb);
       }
     }
   }
-  // Traffic signal poles around the central crossroads.
-  for(const [x,z] of [[9,9],[-9,9],[9,-9],[-9,-9]]){
-    cylinder(scene,x,2.1,z,.12,.16,4.2,mat(0x303a3e),8);
-    box(scene,x,4.0,z,.62,1.65,.42,mat(0x20282b));
-    for(let i=0;i<3;i++){
-      const light=new THREE.Mesh(new THREE.SphereGeometry(.14,8,8),mat([0xff453f,0xf3c84c,0x65d477][i],.3,{emissive:[0x8f1712,0x806017,0x174f28][i],emissiveIntensity:.35}));
-      light.position.set(x,4.48-i*.48,z+.23);scene.add(light);
+
+  // Traffic signals remain at the four corners of the central intersection.
+  for (const [x, z] of [[9, 9], [-9, 9], [9, -9], [-9, -9]]) {
+    cylinder(scene, x, 2.1, z, .12, .16, 4.2, mat(0x303a3e), 9);
+    box(scene, x, 4.0, z, .62, 1.65, .42, mat(0x20282b));
+    for (let i = 0; i < 3; i++) {
+      const colors = [0xff453f, 0xf3c84c, 0x65d477];
+      const glows = [0x8f1712, 0x806017, 0x174f28];
+      const light = new THREE.Mesh(
+        new THREE.SphereGeometry(.14, 10, 8),
+        mat(colors[i], .3, { emissive: glows[i], emissiveIntensity: .35 })
+      );
+      light.position.set(x, 4.48 - i * .48, z + .23);
+      scene.add(light);
     }
   }
 }
