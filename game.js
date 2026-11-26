@@ -20,12 +20,22 @@ let joyPointer = null, lookPointer = null, lastX = 0, lastY = 0;
 let walkTime = 0;
 const colliders = [];
 const traffic = [];
-let npc, missionPackage, grammPickup, parkedCar, driving = false;
+let npc, missionPackage, grammPickup, parkedCar, driving = false, drivingCar = null;
+let parkingCars = [], homeMarker = null, questNpcs = [], questIndex = 0, questStage = "talk";
 let missionState = "new", cash = 0, gramm = 0, actionTarget = null, actionRefresh = 0;
+const homeSpawn = new THREE.Vector3(-154, .15, -140);
+const quests = [
+  {name:"Первая доставка",npc:[10.7,17.2],item:[22,22],label:"ПОСЫЛКА",reward:5000,color:0x63e5a1},
+  {name:"Срочная посылка",npc:[-96,-140],item:[-110,-110],label:"ГРУЗ",reward:7500,color:0xffbd55},
+  {name:"Потерянный кейс",npc:[120,130],item:[110,110],label:"КЕЙС",reward:10000,color:0x7b8cff},
+  {name:"Запчасти для механика",npc:[96,-96],item:[110,-66],label:"ЗАПЧАСТИ",reward:12500,color:0x55d8e8}
+];
 const SAVE_KEY = "gtaworld-save-v1";
 try {
   const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
   missionState = saved.missionState || "new";
+  questIndex = Math.max(0, Math.min(quests.length, Number(saved.questIndex) || (missionState === "done" ? 1 : 0)));
+  questStage = saved.questStage || (missionState === "package" ? "collect" : missionState === "return" ? "return" : missionState === "done" ? "talk" : "talk");
   cash = Number(saved.cash) || 0;
   gramm = Number(saved.gramm) || 0;
 } catch {}
@@ -698,26 +708,46 @@ function createMissionObject(x,z,color,label) {
   tag.position.y=1.65;g.add(tag);return g;
 }
 function saveGame(){
-  try{localStorage.setItem(SAVE_KEY,JSON.stringify({missionState,cash,gramm}));}catch{}
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({missionState,questIndex,questStage,cash,gramm}));}catch{}
   updateWallet();
 }
 function updateWallet(){
   walletHud.innerHTML='<b>$ '+cash.toLocaleString("en-US")+'</b><span>'+gramm.toLocaleString("en-US")+' GRAMM</span>';
 }
 function updateMissionPanel(){
-  if(missionState==="new"){missionTitle.textContent="Поговори с незнакомцем";missionSub.textContent="Подойди к человеку с жёлтым значком";}
-  else if(missionState==="package"){missionTitle.textContent="Доставь посылку";missionSub.textContent="Забери посылку и вернись к заказчику";}
-  else if(missionState==="return"){missionTitle.textContent="Посылка у тебя";missionSub.textContent="Вернись к заказчику с посылкой";}
-  else {missionTitle.textContent="Первое задание выполнено";missionSub.textContent="Награда получена • Исследуй город";}
+  if(questIndex >= quests.length){missionTitle.textContent="Все задания выполнены";missionSub.textContent="Ты прошёл все городские контракты";}
+  else {
+    const q=quests[questIndex];
+    missionTitle.textContent=q.name;
+    missionSub.textContent=questStage==="talk"?"Найди заказчика и поговори с ним":questStage==="collect"?"Найди отмеченный груз и забери его":"Вернись к заказчику за наградой";
+  }
   updateWallet();
 }
 function setupWorldActivities(){
-  npc=createNpc(10.7,17.2);
-  missionPackage=createMissionObject(22,22,0x63e5a1,"ПОСЫЛКА");
+  questNpcs=quests.map(q=>createNpc(q.npc[0],q.npc[1]));
+  npc=questNpcs[questIndex]||null;
+  missionPackage=createMissionObject(quests[0].item[0],quests[0].item[1],quests[0].color,quests[0].label);
+  missionPackage.visible=questIndex<quests.length&&questStage==="collect";
   grammPickup=createMissionObject(-22,22,0x52d9ff,"100 GRAMM");
-  missionPackage.visible=missionState==="package";
   grammPickup.visible=gramm<100;
-  parkedCar=makeCar(0x2474a8,3.1,30,0);
+  questNpcs.forEach((person,i)=>{person.visible=i===questIndex&&questIndex<quests.length;person.userData.marker.visible=questStage==="talk"||questStage==="return";});
+  homeMarker=createMissionObject(homeSpawn.x,homeSpawn.z,0x8fe6ff,"МОЙ ДОМ");
+  homeMarker.scale.setScalar(.8);
+  homeMarker.userData.isHome=true;
+  // Three public parking hubs with marked bays and rentable-looking cars.
+  parkingCars=[];
+  const lots=[{x:22,z:-22,colors:[0x2474a8,0xd2a53c]},{x:-22,z:22,colors:[0xc64f43,0x4d8067]},{x:154,z:-110,colors:[0x7c6acb,0xe4e5e1]}];
+  lots.forEach((lot,li)=>{
+    const pad=new THREE.Mesh(new THREE.PlaneGeometry(13,9),mats.sidewalk);pad.rotation.x=-Math.PI/2;pad.position.set(lot.x,.055,lot.z);scene.add(pad);
+    for(let k=0;k<2;k++){
+      const px=lot.x+(k?3.1:-3.1),pz=lot.z;
+      for(const side of [-1,1]) box(scene,px+side*1.35,.075,pz, .055,.035,7.5,mats.white,false);
+      parkingCars.push(makeCar(lot.colors[k],px,pz,k?Math.PI:0));
+    }
+    const sign=box(scene,lot.x,.0,lot.z+5.0,2.8,1.6,.16,mat(0x24546a),false);sign.position.y=.9;
+  });
+  parkedCar=parkingCars[0]||null;
+  player.position.copy(homeSpawn);
   updateMissionPanel();
 }
 function nearestInteraction(){
@@ -725,40 +755,50 @@ function nearestInteraction(){
   const px=player.position.x,pz=player.position.z;
   const dist=o=>Math.hypot(px-o.position.x,pz-o.position.z);
   const options=[];
-  if(npc&&(missionState==="new"||missionState==="return"))options.push({type:"npc",distance:dist(npc)});
-  if(missionState==="package"&&missionPackage.visible)options.push({type:"package",distance:dist(missionPackage)});
+  if(npc&&questIndex<quests.length&&(questStage==="talk"||questStage==="return"))options.push({type:"npc",distance:dist(npc)});
+  if(questStage==="collect"&&missionPackage.visible)options.push({type:"package",distance:dist(missionPackage)});
   if(grammPickup.visible)options.push({type:"gramm",distance:dist(grammPickup)});
-  if(parkedCar)options.push({type:"car",distance:dist(parkedCar)});
-  return options.filter(o=>o.distance<3.25).sort((a,b)=>a.distance-b.distance)[0]||null;
+  parkingCars.forEach((car,i)=>options.push({type:"car",car,index:i,distance:dist(car)}));
+  if(homeMarker)options.push({type:"home",distance:dist(homeMarker)});
+  return options.filter(o=>o.distance<3.5).sort((a,b)=>a.distance-b.distance)[0]||null;
 }
 function refreshInteraction(){
   actionTarget=nearestInteraction();
   if(!actionTarget){actionButton.classList.remove("available");actionButton.textContent="НЕТ ДЕЙСТВИЯ";return;}
-  const labels={npc:missionState==="new"?"ПОГОВОРИТЬ":"СДАТЬ ПОСЫЛКУ",package:"ЗАБРАТЬ ПОСЫЛКУ",gramm:"ПОДОБРАТЬ 100 GRAMM",car:"СЕСТЬ В МАШИНУ",exit:"ВЫЙТИ ИЗ МАШИНЫ"};
+  const labels={npc:questStage==="talk"?"НАЧАТЬ КВЕСТ":"СДАТЬ ЗАДАНИЕ",package:"ЗАБРАТЬ ГРУЗ",gramm:"ПОДОБРАТЬ 100 GRAMM",car:"ВЗЯТЬ МАШИНУ",exit:"ВЫЙТИ ИЗ МАШИНЫ",home:"ПОЯВИТЬСЯ ДОМА"};
   actionButton.textContent=labels[actionTarget.type];actionButton.classList.add("available");
 }
 function interact(){
   if(!actionTarget)return;
   const type=actionTarget.type;
-  if(type==="npc"&&missionState==="new"){
-    missionState="package";missionPackage.visible=true;
-    hint.textContent="ЗАДАНИЕ ПРИНЯТО • НАЙДИ ЗЕЛЁНЫЙ МАРКЕР";
-  }else if(type==="package"&&missionState==="package"){
-    missionState="return";missionPackage.visible=false;
-    hint.textContent="ПОСЫЛКА ПОЛУЧЕНА • ВЕРНИСЬ К ЗАКАЗЧИКУ";
-  }else if(type==="npc"&&missionState==="return"){
-    missionState="done";cash+=5000;npc.userData.marker.visible=false;
-    hint.textContent="ЗАДАНИЕ ВЫПОЛНЕНО • +$5,000";
+  if(type==="npc"&&questIndex<quests.length){
+    if(questStage==="talk"){
+      questStage="collect";missionPackage.position.set(quests[questIndex].item[0],.12,quests[questIndex].item[1]);missionPackage.visible=true;
+      npc.userData.marker.visible=false;
+      hint.textContent="КОНТРАКТ ПРИНЯТ • НАЙДИ ОТМЕЧЕННЫЙ ГРУЗ";
+    }else if(questStage==="return"){
+      const reward=quests[questIndex].reward;cash+=reward;
+      hint.textContent="КВЕСТ ВЫПОЛНЕН • +$"+reward.toLocaleString("en-US");
+      npc.userData.marker.visible=false;missionPackage.visible=false;
+      questIndex++;questStage="talk";npc=questNpcs[questIndex]||null;
+      questNpcs.forEach((person,i)=>{person.visible=i===questIndex&&questIndex<quests.length;if(person.userData.marker)person.userData.marker.visible=i===questIndex;});
+      if(questIndex<quests.length){missionPackage.position.set(quests[questIndex].item[0],.12,quests[questIndex].item[1]);}
+    }
+  }else if(type==="package"&&questStage==="collect"){
+    questStage="return";missionPackage.visible=false;npc.userData.marker.visible=true;
+    hint.textContent="ГРУЗ ЗАБРАН • ВЕРНИСЬ К ЗАКАЗЧИКУ";
   }else if(type==="gramm"){
-    gramm+=100;grammPickup.visible=false;
-    hint.textContent="НАЙДЕН ПРЕДМЕТ • +100 GRAMM";
+    gramm+=100;grammPickup.visible=false;hint.textContent="НАЙДЕН ПРЕДМЕТ • +100 GRAMM";
   }else if(type==="car"){
-    driving=true;player.visible=false;moveX=0;moveZ=0;
-    hint.textContent="ТЫ ЗА РУЛЁМ • ДЖОЙСТИК — ПОВОРОТ И ГАЗ";
+    driving=true;drivingCar=actionTarget.car;parkedCar=drivingCar;player.visible=false;moveX=0;moveZ=0;
+    hint.textContent="МАШИНА ВЗЯТА С ПАРКОВКИ • ДЖОЙСТИК — УПРАВЛЕНИЕ";
   }else if(type==="exit"){
     driving=false;player.visible=true;
-    player.position.set(parkedCar.position.x+2.2,.15,parkedCar.position.z);
-    hint.textContent="ВЫ ВЫШЛИ ИЗ МАШИНЫ";
+    player.position.set(drivingCar.position.x+2.2,.15,drivingCar.position.z);
+    drivingCar=null;hint.textContent="ВЫ ВЫШЛИ ИЗ МАШИНЫ";
+  }else if(type==="home"){
+    if(driving){driving=false;player.visible=true;drivingCar=null;}
+    player.position.copy(homeSpawn);yaw=0;hint.textContent="ТЫ ДОМА • ТОЧКА ПОЯВЛЕНИЯ ОБНОВЛЕНА";
   }
   saveGame();updateMissionPanel();refreshInteraction();
 }
@@ -898,15 +938,16 @@ function update(dt){
     player.userData.torso.position.y=1.48+(moving?Math.abs(Math.sin(walkTime*2))*.035:0);
   }
   if(driving&&moving){
-    parkedCar.rotation.y+=moveX*.95*dt;
+    drivingCar.rotation.y+=moveX*.95*dt;
     const throttle=-moveZ;
     const speed=throttle>=0?throttle*18:throttle*8;
-    const nx=parkedCar.position.x+Math.sin(parkedCar.rotation.y)*speed*dt;
-    const nz=parkedCar.position.z+Math.cos(parkedCar.rotation.y)*speed*dt;
-    if(!blocked(nx,nz)){parkedCar.position.x=THREE.MathUtils.clamp(nx,-190,190);parkedCar.position.z=THREE.MathUtils.clamp(nz,-190,190);}
-    yaw=parkedCar.rotation.y;
+    const nx=drivingCar.position.x+Math.sin(drivingCar.rotation.y)*speed*dt;
+    const nz=drivingCar.position.z+Math.cos(drivingCar.rotation.y)*speed*dt;
+    if(!blocked(nx,nz)){drivingCar.position.x=THREE.MathUtils.clamp(nx,-190,190);drivingCar.position.z=THREE.MathUtils.clamp(nz,-190,190);}
+    yaw=drivingCar.rotation.y;
   }
-  if(npc?.userData.marker)npc.userData.marker.position.y=3.05+Math.sin(clock.elapsedTime*2.4)*.12;
+  questNpcs.forEach(person=>{if(person.visible&&person.userData.marker)person.userData.marker.position.y=3.05+Math.sin(clock.elapsedTime*2.4)*.12;});
+  if(homeMarker?.visible)homeMarker.position.y=.12+Math.sin(clock.elapsedTime*2)*.08;
   if(missionPackage?.visible)missionPackage.position.y=.12+Math.sin(clock.elapsedTime*2.5)*.08;
   if(grammPickup?.visible)grammPickup.position.y=.12+Math.sin(clock.elapsedTime*2.1)*.08;
   traffic.forEach(t=>{
@@ -914,7 +955,7 @@ function update(dt){
     if(t.mesh.position[t.axis]>185)t.mesh.position[t.axis]=-185;
     if(t.mesh.position[t.axis]<-185)t.mesh.position[t.axis]=185;
   });
-  const focus=driving?parkedCar:player;
+  const focus=driving?drivingCar:player;
   const desired=new THREE.Vector3(focus.position.x+Math.sin(yaw)*(driving?10:8.2),focus.position.y+(driving?5:4.3)+pitch*4,focus.position.z+Math.cos(yaw)*(driving?10:8.2));
   camera.position.lerp(desired,1-Math.pow(.001,dt));
   camera.lookAt(focus.position.x,focus.position.y+(driving?1.1:1.35),focus.position.z);
