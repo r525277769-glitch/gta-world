@@ -8,6 +8,11 @@ const errorBox = document.querySelector("#error");
 const joystick = document.querySelector("#joystick");
 const stick = document.querySelector("#stick");
 const runButton = document.querySelector("#run");
+const actionButton = document.querySelector("#action");
+const walletHud = document.querySelector("#wallet");
+const missionHud = document.querySelector("#mission");
+const missionTitle = missionHud.querySelector("strong");
+const missionSub = missionHud.querySelector("span");
 
 let scene, camera, renderer, clock, player, sun;
 let yaw = 0, pitch = 0.18, moveX = 0, moveZ = 0, running = false;
@@ -15,6 +20,15 @@ let joyPointer = null, lookPointer = null, lastX = 0, lastY = 0;
 let walkTime = 0;
 const colliders = [];
 const traffic = [];
+let npc, missionPackage, grammPickup, parkedCar, driving = false;
+let missionState = "new", cash = 0, gramm = 0, actionTarget = null, actionRefresh = 0;
+const SAVE_KEY = "gtaworld-save-v1";
+try {
+  const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
+  missionState = saved.missionState || "new";
+  cash = Number(saved.cash) || 0;
+  gramm = Number(saved.gramm) || 0;
+} catch {}
 const gltfLoader = new GLTFLoader();
 const assetCache = new Map();
 let playerMixer = null;
@@ -570,6 +584,97 @@ function addTraffic() {
   }
 }
 
+function createNpc(x,z) {
+  const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
+  const skin=mat(0xb77c5c), jacket=mat(0x9b4b32), pants=mat(0x303a48), dark=mat(0x292322);
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.36,.65,4,9),jacket);body.position.y=1.15;body.castShadow=true;g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,16,12),skin);head.position.y=1.9;head.castShadow=true;g.add(head);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(.275,14,9,0,Math.PI*2,0,Math.PI*.52),dark);hair.position.y=2.02;g.add(hair);
+  for(const side of [-1,1]){
+    const arm=box(g,side*.47,1.2,0,.19,.72,.2,jacket);arm.rotation.z=side*.12;
+    box(g,side*.19,.47,0,.24,.72,.27,pants);
+    box(g,side*.19,.12,.08,.27,.18,.42,mat(0x171b20));
+  }
+  const marker=new THREE.Group();marker.position.set(0,3.05,0);g.add(marker);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.42,.07,8,24),mat(0xffd34d,.35,{emissive:0x9b6b12,emissiveIntensity:.35}));ring.rotation.x=Math.PI/2;marker.add(ring);
+  const pin=new THREE.Mesh(new THREE.SphereGeometry(.16,12,10),mat(0xffe17a,.3,{emissive:0x9b6b12,emissiveIntensity:.5}));pin.position.y=.25;marker.add(pin);
+  g.userData.marker=marker;return g;
+}
+function createMissionObject(x,z,color,label) {
+  const g=new THREE.Group();g.position.set(x,.12,z);scene.add(g);
+  const orb=new THREE.Mesh(new THREE.IcosahedronGeometry(.42,1),mat(color,.28,{metalness:.12,emissive:color,emissiveIntensity:.28}));orb.position.y=.72;orb.castShadow=true;g.add(orb);
+  const halo=new THREE.Mesh(new THREE.TorusGeometry(.62,.055,8,28),mat(color,.35,{emissive:color,emissiveIntensity:.35}));halo.rotation.x=Math.PI/2;halo.position.y=.16;g.add(halo);
+  const canvas=document.createElement("canvas");canvas.width=256;canvas.height=64;const c=canvas.getContext("2d");
+  c.fillStyle="#101820";c.fillRect(0,0,256,64);c.fillStyle="#fff";c.font="bold 25px Arial";c.textAlign="center";c.textBaseline="middle";c.fillText(label,128,32);
+  const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
+  const tag=new THREE.Mesh(new THREE.PlaneGeometry(2.1,.52),new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide}));
+  tag.position.y=1.65;g.add(tag);return g;
+}
+function saveGame(){
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({missionState,cash,gramm}));}catch{}
+  updateWallet();
+}
+function updateWallet(){
+  walletHud.innerHTML='<b>$ '+cash.toLocaleString("en-US")+'</b><span>'+gramm.toLocaleString("en-US")+' GRAMM</span>';
+}
+function updateMissionPanel(){
+  if(missionState==="new"){missionTitle.textContent="Поговори с незнакомцем";missionSub.textContent="Подойди к человеку с жёлтым значком";}
+  else if(missionState==="package"){missionTitle.textContent="Доставь посылку";missionSub.textContent="Забери посылку и вернись к заказчику";}
+  else if(missionState==="return"){missionTitle.textContent="Посылка у тебя";missionSub.textContent="Вернись к заказчику с посылкой";}
+  else {missionTitle.textContent="Первое задание выполнено";missionSub.textContent="Награда получена • Исследуй город";}
+  updateWallet();
+}
+function setupWorldActivities(){
+  npc=createNpc(10.7,17.2);
+  missionPackage=createMissionObject(22,22,0x63e5a1,"ПОСЫЛКА");
+  grammPickup=createMissionObject(-22,22,0x52d9ff,"100 GRAMM");
+  missionPackage.visible=missionState==="package";
+  grammPickup.visible=gramm<100;
+  parkedCar=makeCar(0x2474a8,3.1,30,0);
+  updateMissionPanel();
+}
+function nearestInteraction(){
+  if(driving)return {type:"exit",distance:0};
+  const px=player.position.x,pz=player.position.z;
+  const dist=o=>Math.hypot(px-o.position.x,pz-o.position.z);
+  const options=[];
+  if(npc&&(missionState==="new"||missionState==="return"))options.push({type:"npc",distance:dist(npc)});
+  if(missionState==="package"&&missionPackage.visible)options.push({type:"package",distance:dist(missionPackage)});
+  if(grammPickup.visible)options.push({type:"gramm",distance:dist(grammPickup)});
+  if(parkedCar)options.push({type:"car",distance:dist(parkedCar)});
+  return options.filter(o=>o.distance<3.25).sort((a,b)=>a.distance-b.distance)[0]||null;
+}
+function refreshInteraction(){
+  actionTarget=nearestInteraction();
+  if(!actionTarget){actionButton.classList.remove("available");actionButton.textContent="НЕТ ДЕЙСТВИЯ";return;}
+  const labels={npc:missionState==="new"?"ПОГОВОРИТЬ":"СДАТЬ ПОСЫЛКУ",package:"ЗАБРАТЬ ПОСЫЛКУ",gramm:"ПОДОБРАТЬ 100 GRAMM",car:"СЕСТЬ В МАШИНУ",exit:"ВЫЙТИ ИЗ МАШИНЫ"};
+  actionButton.textContent=labels[actionTarget.type];actionButton.classList.add("available");
+}
+function interact(){
+  if(!actionTarget)return;
+  const type=actionTarget.type;
+  if(type==="npc"&&missionState==="new"){
+    missionState="package";missionPackage.visible=true;
+    hint.textContent="ЗАДАНИЕ ПРИНЯТО • НАЙДИ ЗЕЛЁНЫЙ МАРКЕР";
+  }else if(type==="package"&&missionState==="package"){
+    missionState="return";missionPackage.visible=false;
+    hint.textContent="ПОСЫЛКА ПОЛУЧЕНА • ВЕРНИСЬ К ЗАКАЗЧИКУ";
+  }else if(type==="npc"&&missionState==="return"){
+    missionState="done";cash+=5000;
+    hint.textContent="ЗАДАНИЕ ВЫПОЛНЕНО • +$5,000";
+  }else if(type==="gramm"){
+    gramm+=100;grammPickup.visible=false;
+    hint.textContent="НАЙДЕН ПРЕДМЕТ • +100 GRAMM";
+  }else if(type==="car"){
+    driving=true;player.visible=false;moveX=0;moveZ=0;
+    hint.textContent="ТЫ ЗА РУЛЁМ • ДЖОЙСТИК — ПОВОРОТ И ГАЗ";
+  }else if(type==="exit"){
+    driving=false;player.visible=true;
+    player.position.set(parkedCar.position.x+2.2,.15,parkedCar.position.z);
+    hint.textContent="ВЫ ВЫШЛИ ИЗ МАШИНЫ";
+  }
+  saveGame();updateMissionPanel();refreshInteraction();
+}
 function limb(parent,x,y,z,w,h,d,material){
   const pivot=new THREE.Group();pivot.position.set(x,y,z);parent.add(pivot);
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.y=-h/2;mesh.castShadow=true;pivot.add(mesh);
