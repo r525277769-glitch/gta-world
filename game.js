@@ -415,7 +415,14 @@ try{
   window.addEventListener("resize",resize);
   camera.position.set(0,5,24);camera.lookAt(0,1.5,16);
   animate();
-  setTimeout(()=>{loading.style.opacity="0";setTimeout(()=>loading.remove(),600);hint.textContent="ДЖОЙСТИК — ДВИЖЕНИЕ  •  СВАЙП — КАМЕРА  •  БЕГ — УСКОРЕНИЕ";},900);
+  const finishLoading=()=>{
+    if(!loading.isConnected) return;
+    loading.style.opacity="0";
+    setTimeout(()=>loading.remove(),600);
+    hint.textContent="ДЖОЙСТИК — ДВИЖЕНИЕ  •  СВАЙП — КАМЕРА  •  БЕГ — УСКОРЕНИЕ";
+  };
+  Promise.allSettled([...assetCache.values()]).then(finishLoading);
+  setTimeout(finishLoading,6500);
 }catch(err){
   console.error(err);errorBox.hidden=false;
   errorBox.textContent="Не удалось запустить 3D-город. Обнови страницу и проверь поддержку WebGL. "+err.message;
