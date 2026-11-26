@@ -39,10 +39,11 @@ const KENNEY_ROOT = "https://raw.githubusercontent.com/shorepine/kenney/main/3d/
 const mats = {};
 const isMobile = matchMedia("(max-width: 700px)").matches;
 const quality = {
-  shadows: true,
-  shadowSize: isMobile ? 1536 : 3072,
-  pixelRatio: isMobile ? 1.6 : 2.2,
-  minPixelRatio: isMobile ? 1.0 : 1.15
+  // Mobile GPUs need a lighter render path; desktop keeps the richer lighting.
+  shadows: !isMobile,
+  shadowSize: isMobile ? 1024 : 2048,
+  pixelRatio: isMobile ? 1.2 : 1.8,
+  minPixelRatio: isMobile ? 0.75 : 1.0
 };
 let adaptiveFrameMs = 16.7;
 let adaptiveCheckTime = 0;
@@ -133,7 +134,7 @@ function canvasTexture(draw, repeatX = 1, repeatY = 1) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
+  texture.anisotropy = Math.min(isMobile ? 4 : 8, renderer.capabilities.getMaxAnisotropy());
   return texture;
 }
 function makeTextures() {
@@ -573,12 +574,14 @@ function makeCar(color,x,z,rotation=0) {
 }
 function addTraffic() {
   const colors=[0xc64f43,0x315c82,0xd3b44c,0xddddda,0x343c42,0x4d8067];
-  for(let i=0;i<8;i++){
+  const verticalCount = isMobile ? 3 : 8;
+  const horizontalCount = isMobile ? 1 : 4;
+  for(let i=0;i<verticalCount;i++){
     const lane=(i%2===0)?-3.1:3.1;
     const car=makeCar(colors[i%colors.length],lane,-175+i*48, i%2===0?0:Math.PI);
     traffic.push({mesh:car,dir:i%2===0?1:-1,speed:5+(i%3)*1.5,axis:"z"});
   }
-  for(let i=0;i<4;i++){
+  for(let i=0;i<horizontalCount;i++){
     const car=makeCar(colors[(i+2)%colors.length],-165+i*82,3.1,Math.PI/2);
     traffic.push({mesh:car,dir:1,speed:4.5+(i%2),axis:"x"});
   }
@@ -838,12 +841,12 @@ function animate(){
 try{
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(62,1,.1,500);
-  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance",alpha:false});
+  renderer=new THREE.WebGLRenderer({antialias:!isMobile,powerPreference:"high-performance",alpha:false});
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure=1.18;
   renderer.physicallyCorrectLights = true;
-  renderer.shadowMap.enabled=quality.shadows;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled=quality.shadows;renderer.shadowMap.type=isMobile?THREE.BasicShadowMap:THREE.PCFSoftShadowMap;
   root.insertBefore(renderer.domElement,root.firstChild);
   clock=new THREE.Clock();
   makeTextures();setupLighting();addRoads();addCity();addStreetFurniture();addTraffic();createPlayer();setupWorldActivities();setupControls();resize();
