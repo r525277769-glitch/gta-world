@@ -26,9 +26,9 @@ const mats = {};
 const isMobile = matchMedia("(max-width: 700px)").matches;
 const quality = {
   shadows: true,
-  shadowSize: isMobile ? 1024 : 2048,
-  pixelRatio: isMobile ? 1.35 : 1.8,
-  minPixelRatio: isMobile ? 0.85 : 1.0
+  shadowSize: isMobile ? 1536 : 3072,
+  pixelRatio: isMobile ? 1.6 : 2.2,
+  minPixelRatio: isMobile ? 1.0 : 1.15
 };
 let adaptiveFrameMs = 16.7;
 let adaptiveCheckTime = 0;
@@ -119,7 +119,7 @@ function canvasTexture(draw, repeatX = 1, repeatY = 1) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  texture.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
   return texture;
 }
 function makeTextures() {
@@ -268,7 +268,7 @@ function createBuilding(x,z,index) {
   const floorH=3.15, h=floors*floorH;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
   const facade=mats.facades[index%mats.facades.length];
-  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,roughness:.94,metalness:.015}));
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,bumpMap:facade,bumpScale:.035,roughness:.91,metalness:.025}));
   body.position.y=h/2+.22; body.castShadow=true; body.receiveShadow=true; group.add(body);
 
   const trim=mat(0xd4c9b7), darkTrim=mat(0x465257), glass=mat(index%4===0?0x8bb7c2:0x527583,.2,{metalness:.28}), glassLit=mat(0xe7c98d,.28,{emissive:0x6b4a20,emissiveIntensity:.12});
@@ -431,6 +431,32 @@ function createBuilding(x,z,index) {
     crown.position.set(-w*.38,2.65,d/2+2.0);crown.scale.set(1,1.15,1);crown.castShadow=quality.shadows;group.add(crown);
   }
 }
+function addParkGrass(cx,cz) {
+  const vertices=[],indices=[];
+  for(let blade=0;blade<3;blade++){
+    const angle=blade*Math.PI/3,dx=Math.cos(angle)*.10,dz=Math.sin(angle)*.10,base=vertices.length/3;
+    vertices.push(-dx,0,-dz,dx,0,dz,dx*.35,.42,dz*.35);
+    indices.push(base,base+1,base+2);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));
+  geo.setIndex(indices);geo.computeVertexNormals();
+  const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,side:THREE.DoubleSide});
+  const count=230,field=new THREE.InstancedMesh(geo,material,count),dummy=new THREE.Object3D();
+  const colors=[new THREE.Color(0x668c45),new THREE.Color(0x8da957),new THREE.Color(0x426b3b),new THREE.Color(0xb1b96a)];
+  let placed=0,tries=0;
+  while(placed<count&&tries<count*8){
+    tries++;
+    const x=(Math.random()-.5)*15.5,z=(Math.random()-.5)*15.5;
+    if(Math.abs(x)<1.35||Math.abs(z)<1.35)continue;
+    if([[-6,-6],[6,-6],[-6,6],[6,6]].some(([tx,tz])=>Math.hypot(x-tx,z-tz)<1.7))continue;
+    dummy.position.set(cx+x,.035,cz+z);dummy.rotation.y=Math.random()*Math.PI*2;
+    const scale=.65+Math.random()*.85;dummy.scale.set(scale,scale,scale);
+    dummy.updateMatrix();field.setMatrixAt(placed,dummy.matrix);
+    field.setColorAt(placed,colors[Math.floor(Math.random()*colors.length)]);placed++;
+  }
+  field.count=placed;field.castShadow=false;field.receiveShadow=true;scene.add(field);
+}
 function addCity() {
   let id=0;
   const centers=[-154,-110,-66,-22,22,66,110,154];
@@ -442,6 +468,7 @@ function addCity() {
   for(const [cx,cz] of [[-22,-22],[22,-22],[-22,22],[22,22]]) {
     const lawn=new THREE.Mesh(new THREE.PlaneGeometry(18,18),mats.grass);
     lawn.rotation.x=-Math.PI/2; lawn.position.set(cx,.02,cz); lawn.receiveShadow=true; scene.add(lawn);
+    addParkGrass(cx,cz);
     const walk1=new THREE.Mesh(new THREE.PlaneGeometry(12,2.1),mats.sidewalk);
     walk1.rotation.x=-Math.PI/2; walk1.position.set(cx,.04,cz); scene.add(walk1);
     const walk2=new THREE.Mesh(new THREE.PlaneGeometry(2.1,12),mats.sidewalk);
@@ -468,10 +495,16 @@ function addTree(x, z, scale = 1) {
   crown.castShadow = quality.shadows;
   crown.receiveShadow = true;
   group.add(crown);
-  const crown2 = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 1), mats.leaf[1]);
+  const crown2 = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 2), mats.leaf[1]);
   crown2.position.set(.7, 3.6, .2);
+  crown2.scale.set(1.08,1.12,1.05);
   crown2.castShadow = quality.shadows;
   group.add(crown2);
+  for(const [px,py,pz,sc,mi] of [[-.78,3.05,.25,.72,0],[.15,4.12,-.48,.68,2],[-.35,3.7,.72,.58,1]]) {
+    const cluster=new THREE.Mesh(new THREE.IcosahedronGeometry(1,2),mats.leaf[mi]);
+    cluster.position.set(px,py,pz);cluster.scale.set(sc,sc*1.08,sc);
+    cluster.castShadow=quality.shadows;cluster.receiveShadow=true;group.add(cluster);
+  }
 }
 
 function addStreetFurniture() {
@@ -587,6 +620,7 @@ function setupLighting(){
   sun=new THREE.DirectionalLight(0xffedcf,3.1);
   sun.position.set(-65,95,50);sun.castShadow=true;
   sun.shadow.mapSize.set(quality.shadowSize,quality.shadowSize);
+  sun.shadow.radius = isMobile ? 3 : 4;
   sun.shadow.camera.left=-105;sun.shadow.camera.right=105;sun.shadow.camera.top=105;sun.shadow.camera.bottom=-105;
   sun.shadow.camera.near=1;sun.shadow.camera.far=220;
   sun.shadow.bias=-.00025;sun.shadow.normalBias=.035;
@@ -679,7 +713,8 @@ try{
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance",alpha:false});
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.12;
+  renderer.toneMappingExposure=1.18;
+  renderer.physicallyCorrectLights = true;
   renderer.shadowMap.enabled=quality.shadows;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   root.insertBefore(renderer.domElement,root.firstChild);
   clock=new THREE.Clock();
