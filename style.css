@@ -1,9 +1,9 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;width:100%;height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;background:#101820;font-family:Inter,Arial,sans-serif;color:#fff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-text-size-adjust:100%}
+html,body{margin:0;width:100%;height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;background:#78c9ed;font-family:Inter,Arial,sans-serif;color:#fff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-text-size-adjust:100%}
 #game{position:relative;width:100%;height:100%;overflow:hidden;background:#9fc5d1}
 canvas{display:block;width:100%;height:100%;outline:0}
 #hud{position:absolute;z-index:5;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 17px 14px;background:linear-gradient(180deg,rgba(7,14,20,.82),rgba(7,14,20,.18),transparent)}
-.brand{display:flex;align-items:center;gap:11px}.brand-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#efff9b,#a8d934);color:#172116;font-weight:1000;font-size:15px;letter-spacing:-1px;box-shadow:0 5px 22px #0006}
+.brand{display:flex;align-items:center;gap:11px}.brand-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#fff47a,#ff9f43);color:#35230e;font-weight:1000;font-size:15px;letter-spacing:-1px;box-shadow:0 5px 22px #0006;border:2px solid #fff9}
 .brand strong{display:block;font-size:13px;letter-spacing:2px;text-shadow:0 2px 5px #0008}.brand small{display:block;margin-top:4px;color:#d1dcdd;font-size:9px;letter-spacing:1.7px}
 .status{font-size:9px;letter-spacing:1.4px;color:#e7eeee;background:#101a22bd;border:1px solid #ffffff30;border-radius:30px;padding:9px 12px;backdrop-filter:blur(8px)}.status-dot{display:inline-block;width:6px;height:6px;background:#a8f34a;border-radius:50%;margin-right:5px;box-shadow:0 0 8px #a8f34a}
 #mission{position:absolute;z-index:4;top:86px;left:17px;padding:12px 15px;border-radius:12px;background:rgba(12,23,29,.78);border:1px solid #ffffff25;backdrop-filter:blur(10px);min-width:174px;box-shadow:0 8px 24px #0002}
@@ -11,8 +11,8 @@ canvas{display:block;width:100%;height:100%;outline:0}
 #hint{position:absolute;z-index:4;top:166px;left:17px;font-size:9px;letter-spacing:.45px;color:#fff;background:#101a2290;padding:8px 11px;border-radius:8px;backdrop-filter:blur(6px)}
 #controls{position:absolute;z-index:5;left:0;right:0;bottom:calc(19px + env(safe-area-inset-bottom));height:150px;pointer-events:none}
 #joystick{position:absolute;left:25px;bottom:0;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,#ffffff25,#101a226b);border:1px solid #ffffff70;backdrop-filter:blur(4px);pointer-events:auto;touch-action:none;display:grid;place-items:center;box-shadow:inset 0 0 20px #0002,0 5px 22px #0003}
-#stick{width:49px;height:49px;border-radius:50%;background:linear-gradient(145deg,#f1ffad,#a8d934);border:2px solid #fff9;box-shadow:0 5px 18px #0007;transform:translate(0,0)}
-#run{position:absolute;right:27px;bottom:23px;width:70px;height:70px;border-radius:50%;border:2px solid #ffffffa0;background:linear-gradient(145deg,#efff9b,#a8d934);color:#172116;font-size:11px;font-weight:1000;letter-spacing:1px;pointer-events:auto;box-shadow:0 5px 22px #0006}
+#stick{width:49px;height:49px;border-radius:50%;background:linear-gradient(145deg,#fff47a,#ff9f43);border:3px solid #fff;box-shadow:0 5px 18px #0007;transform:translate(0,0)}
+#run{position:absolute;right:27px;bottom:23px;width:70px;height:70px;border-radius:50%;border:2px solid #ffffffa0;background:linear-gradient(145deg,#fff47a,#ff9f43);color:#35230e;font-size:11px;font-weight:1000;letter-spacing:1px;pointer-events:auto;box-shadow:0 5px 22px #0006}
 #run.active{background:#fff;color:#172116;transform:scale(.95)}
 #look-hint{position:absolute;right:18px;top:-5px;max-width:155px;text-align:right;color:#ffffffd1;font-size:9px;line-height:1.45;text-shadow:0 2px 5px #000}
 #loading{position:absolute;z-index:10;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(ellipse at 50% 45%,#344f56,#101820 72%);transition:opacity .6s}
@@ -34,3 +34,11 @@ button{font:inherit;touch-action:none}
 #run{right:20px;width:66px;height:66px}
 #look-hint{right:14px;max-width:145px}
 }
+
+/* Playful animated-game UI polish */
+.brand-mark{border-radius:15px;transform:rotate(-5deg)}
+#mission{border:2px solid #ffffff55;border-radius:16px;box-shadow:0 8px 0 #152b3650,0 12px 28px #0003}
+#joystick{border:2px solid #ffffffa8;box-shadow:inset 0 0 0 5px #ffffff18,0 7px 0 #14232c55,0 12px 24px #0003}
+#stick,#run{box-shadow:0 5px 0 #8c5a24,0 8px 18px #0005}
+#run{border:3px solid #fff}
+#hint{border:1px solid #ffffff55;border-radius:12px}
