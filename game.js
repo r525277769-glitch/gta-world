@@ -171,32 +171,40 @@ function makeTextures() {
 }
 
 function addRoads() {
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(300,300),mats.grass);
-  ground.rotation.x=-Math.PI/2; ground.position.y=-.08; ground.receiveShadow=true; scene.add(ground);
-  const roadW=14, step=44;
-  for(let i=-3;i<=3;i++){
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(300,300), mats.grass);
+  ground.rotation.x = -Math.PI/2; ground.position.y = -0.12; ground.receiveShadow = true; scene.add(ground);
+  const roadW = 14, step = 44, curb = mat(0xd8d2c5), white = mat(0xe8e6dc), yellow = mat(0xf2c94c);
+  for (let i=-3;i<=3;i++) {
     const p=i*step;
-    const vertical=new THREE.Mesh(new THREE.PlaneGeometry(roadW,300),mats.road);
-    vertical.rotation.x=-Math.PI/2; vertical.position.set(p,.005,0); vertical.receiveShadow=true; scene.add(vertical);
-    const horizontal=new THREE.Mesh(new THREE.PlaneGeometry(300,roadW),mats.road);
-    horizontal.rotation.x=-Math.PI/2; horizontal.position.set(0,.006,p); horizontal.receiveShadow=true; scene.add(horizontal);
-    for(const side of [-1,1]){
-      const curbV=box(scene,p+side*(roadW/2+1.15),.12,0,2.3,.24,300,mats.sidewalk,false);
-      const curbH=box(scene,0,.12,p+side*(roadW/2+1.15),300,.24,2.3,mats.sidewalk,false);
+    const v=new THREE.Mesh(new THREE.PlaneGeometry(roadW,300),mats.road);
+    v.rotation.x=-Math.PI/2; v.position.set(p,.012,0); v.receiveShadow=true; scene.add(v);
+    const h=new THREE.Mesh(new THREE.PlaneGeometry(300,roadW),mats.road);
+    h.rotation.x=-Math.PI/2; h.position.set(0,.013,p); h.receiveShadow=true; scene.add(h);
+    for (const side of [-1,1]) {
+      const off=10.1*side;
+      const sv=new THREE.Mesh(new THREE.PlaneGeometry(6.2,300),mats.sidewalk);
+      sv.rotation.x=-Math.PI/2; sv.position.set(p+off,.025,0); sv.receiveShadow=true; scene.add(sv);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(300,6.2),mats.sidewalk);
+      sh.rotation.x=-Math.PI/2; sh.position.set(0,.026,p+off); sh.receiveShadow=true; scene.add(sh);
+      box(scene,p+side*7.22,.11,0,.44,.22,300,curb,false);
+      box(scene,0,.11,p+side*7.22,300,.22,.44,curb,false);
     }
-    for(let n=-6;n<=6;n++){
-      const z=n*22;
-      box(scene,p,.035,z,.16,.025,7,mats.yellow,false);
-      box(scene,z,.035,p,7,.025,.16,mats.yellow,false);
+    for (const o of [-.16,.16]) {
+      box(scene,p+o,.035,0,.11,.025,300,yellow,false);
+      box(scene,0,.036,p+o,300,.025,.11,yellow,false);
     }
-    // Crosswalks at intersections.
-    for(let stripe=-3;stripe<=3;stripe++){
-      box(scene,p+stripe*1.55,.045,p-10,0.9,.035,4.2,mats.white,false);
-      box(scene,p-10,.045,p+stripe*1.55,4.2,.035,.9,mats.white,false);
+    for (const lane of [-3.35,3.35]) for(let z=-140;z<=140;z+=13) {
+      box(scene,p+lane,.034,z,.075,.022,5.2,white,false);
+      box(scene,z,.035,p+lane,5.2,.022,.075,white,false);
     }
   }
+  // Zebra crossings only at the central junction; all other road corridors stay unobstructed.
+  for(const side of [-1,1]) for(let n=-3;n<=3;n++) {
+    const t=n*1.55;
+    box(scene,t,.045,side*9.7,.82,.035,3,mats.white,false);
+    box(scene,side*9.7,.046,t,3,.035,.82,mats.white,false);
+  }
 }
-
 function createBuilding(x,z,index) {
   const w=13+(index%3)*2, d=12+(index%2)*2, floors=3+(index*7%5), h=floors*3.15;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
@@ -237,41 +245,35 @@ function createBuilding(x,z,index) {
 }
 
 function addCity() {
-  // Buildings sit in the middle of city blocks, never inside the road corridors.
-  // The four central blocks are left open to form one continuous town square.
-  let id = 0;
-  const blockCenters = [-110, -66, -22, 22, 66, 110];
-  for (const bx of blockCenters) {
-    for (const bz of blockCenters) {
-      if (Math.abs(bx) <= 22 && Math.abs(bz) <= 22) continue;
-      createBuilding(bx, bz, id++);
+  let id=0;
+  const centers=[-110,-66,-22,22,66,110];
+  for(const bx of centers) for(const bz of centers) {
+    if(Math.abs(bx)===22 && Math.abs(bz)===22) continue;
+    createBuilding(bx,bz,id++);
+  }
+  // Four pocket parks are contained inside the four central blocks, not on the roads.
+  for(const [cx,cz] of [[-22,-22],[22,-22],[-22,22],[22,22]]) {
+    const lawn=new THREE.Mesh(new THREE.PlaneGeometry(18,18),mats.grass);
+    lawn.rotation.x=-Math.PI/2; lawn.position.set(cx,.02,cz); lawn.receiveShadow=true; scene.add(lawn);
+    const walk1=new THREE.Mesh(new THREE.PlaneGeometry(12,2.1),mats.sidewalk);
+    walk1.rotation.x=-Math.PI/2; walk1.position.set(cx,.04,cz); scene.add(walk1);
+    const walk2=new THREE.Mesh(new THREE.PlaneGeometry(2.1,12),mats.sidewalk);
+    walk2.rotation.x=-Math.PI/2; walk2.position.set(cx,.041,cz); scene.add(walk2);
+    for(const [dx,dz] of [[-6,-6],[6,-6],[-6,6],[6,6]]) addTree(cx+dx,cz+dz,.52);
+    for(const side of [-1,1]) {
+      const bx=cx+side*4;
+      box(scene,bx,.55,cz,2.1,.17,.58,mat(0x80583b),false);
+      box(scene,bx,.8,cz-.22,2.1,.55,.13,mat(0x80583b),false);
+      for(const leg of [-.75,.75]) box(scene,bx+leg,.27,cz,.12,.54,.12,mat(0x343a3c),false);
     }
   }
-
-  // A clearly bounded central pedestrian plaza.
-  const plaza = new THREE.Mesh(
-    new THREE.PlaneGeometry(38, 38),
-    mats.sidewalk
-  );
-  plaza.rotation.x = -Math.PI / 2;
-  plaza.position.y = .025;
-  scene.add(plaza);
-  box(scene, 0, .08, 0, 34, .16, 34, mat(0xc9bda5), false);
-
-  // Trees are deliberately confined to landscaped plaza corners.
-  for (const [x, z] of [[-12, -12], [12, -12], [-12, 12], [12, 12]]) {
-    addTree(x, z, .72);
-  }
-
-  const ring = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.9, .8, 16), mat(0x879b9b));
-  ring.position.set(0, .48, 0); ring.castShadow = quality.shadows; scene.add(ring);
-  const water = new THREE.Mesh(new THREE.CylinderGeometry(3.9, 3.9, .1, 32), mat(0x3e9aab, .22, { metalness: .25 }));
-  water.position.set(0, .93, 0); water.castShadow = false; scene.add(water);
-  cylinder(scene, 0, 1.55, 0, .18, .28, 1.2, mat(0xc8d8d4));
-  const spray = new THREE.Mesh(new THREE.SphereGeometry(.35, 12, 10), mat(0x9ce5e8, .2, { transparent: true, opacity: .8 }));
-  spray.position.set(0, 2.2, 0); spray.castShadow = false; scene.add(spray);
+  // Keep the centre of the four-way intersection clear: no oversized plaza or trees on asphalt.
+  const island=new THREE.Mesh(new THREE.CylinderGeometry(1.9,2.2,.28,24),mat(0xbab6a9));
+  island.position.set(0,.18,0); island.castShadow=true; scene.add(island);
+  const water=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,.07,32),mat(0x3d9eaf,.2,{metalness:.18}));
+  water.position.set(0,.36,0); scene.add(water);
+  cylinder(scene,0,.78,0,.12,.18,.78,mat(0xcbd9d5));
 }
-
 function addTree(x, z, scale = 1) {
   const group = new THREE.Group();
   group.position.set(x, 0, z);
@@ -291,39 +293,23 @@ function addTree(x, z, scale = 1) {
 }
 
 function addStreetFurniture() {
-  // Street lamps are placed on the sidewalk edge, outside the 14-unit carriageway.
-  for (let road = -3; road <= 3; road++) {
-    for (const side of [-1, 1]) {
-      for (let block = -2; block <= 2; block++) {
-        const x = road * 44 + side * 9.8;
-        const z = block * 44 + 22;
-        cylinder(scene, x, 3.2, z, .09, .13, 6.4, mat(0x343d3d), 9);
-        box(scene, x + side * .62, 6.25, z, .95, .12, .18, mat(0x343d3d));
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(.19, 10, 8), mats.lamp);
-        bulb.position.set(x + side * 1.05, 6.12, z);
-        bulb.castShadow = false;
-        scene.add(bulb);
-      }
-    }
+  for(let road=-3;road<=3;road++) for(const side of [-1,1]) for(let block=-2;block<=2;block++) {
+    const x=road*44+side*10.1, z=block*44+22;
+    cylinder(scene,x,3, z,.075,.11,6,mat(0x303a3d),10);
+    box(scene,x+side*.55,5.85,z,.9,.11,.16,mat(0x303a3d));
+    const bulb=new THREE.Mesh(new THREE.SphereGeometry(.17,10,8),mats.lamp);
+    bulb.position.set(x+side*.98,5.72,z); bulb.castShadow=false; scene.add(bulb);
   }
-
-  // Traffic signals remain at the four corners of the central intersection.
-  for (const [x, z] of [[9, 9], [-9, 9], [9, -9], [-9, -9]]) {
-    cylinder(scene, x, 2.1, z, .12, .16, 4.2, mat(0x303a3e), 9);
-    box(scene, x, 4.0, z, .62, 1.65, .42, mat(0x20282b));
-    for (let i = 0; i < 3; i++) {
-      const colors = [0xff453f, 0xf3c84c, 0x65d477];
-      const glows = [0x8f1712, 0x806017, 0x174f28];
-      const light = new THREE.Mesh(
-        new THREE.SphereGeometry(.14, 10, 8),
-        mat(colors[i], .3, { emissive: glows[i], emissiveIntensity: .35 })
-      );
-      light.position.set(x, 4.48 - i * .48, z + .23);
-      scene.add(light);
+  for(const [x,z] of [[10.8,10.8],[-10.8,10.8],[10.8,-10.8],[-10.8,-10.8]]) {
+    cylinder(scene,x,2,z,.11,.14,4,mat(0x303a3e),10);
+    box(scene,x,3.85,z,.58,1.5,.38,mat(0x20282b));
+    for(let i=0;i<3;i++) {
+      const colors=[0xff453f,0xf3c84c,0x65d477], glows=[0x8f1712,0x806017,0x174f28];
+      const light=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),mat(colors[i],.3,{emissive:glows[i],emissiveIntensity:.35}));
+      light.position.set(x,4.25-i*.43,z+.21); scene.add(light);
     }
   }
 }
-
 function makeCar(color,x,z,rotation=0) {
   const group=new THREE.Group();group.position.set(x,.25,z);group.rotation.y=rotation;scene.add(group);
   const bodyMat=mat(color,.38,{metalness:.22});
