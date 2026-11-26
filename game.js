@@ -35,7 +35,7 @@ function box(parent, x, y, z, w, h, d, material, cast = true) {
 function cylinder(parent, x, y, z, rt, rb, h, material, sides = 10) {
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, sides), material);
   mesh.position.set(x, y, z);
-  mesh.castShadow = true;
+  mesh.castShadow = quality.shadows;
   parent.add(mesh);
   return mesh;
 }
@@ -157,12 +157,12 @@ function addCity() {
   // Pocket park around the central fountain.
   box(scene,0,.08,0,31,.16,31,mat(0xc9bda5),false);
   const ring=new THREE.Mesh(new THREE.CylinderGeometry(4.5,4.9,.8,12),mat(0x879b9b));
-  ring.position.set(0,.48,0); ring.castShadow=true; scene.add(ring);
+  ring.position.set(0,.48,0); ring.castShadow=quality.shadows; scene.add(ring);
   const water=new THREE.Mesh(new THREE.CylinderGeometry(3.9,3.9,.1,24),mat(0x3e9aab,.22,{metalness:.25}));
-  water.position.set(0,.93,0); scene.add(water);
+  water.position.set(0,.93,0); water.castShadow=false; scene.add(water);
   cylinder(scene,0,1.55,0,.18,.28,1.2,mat(0xc8d8d4));
   const spray=new THREE.Mesh(new THREE.SphereGeometry(.35,10,8),mat(0x9ce5e8,.2,{transparent:true,opacity:.8}));
-  spray.position.set(0,2.2,0);scene.add(spray);
+  spray.position.set(0,2.2,0);spray.castShadow=false;scene.add(spray);
 }
 
 function addTree(x,z,scale=1) {
@@ -182,7 +182,7 @@ function addStreetFurniture() {
         cylinder(scene,x,3.2,z,.09,.13,6.4,mat(0x343d3d),8);
         box(scene,x+.62,6.25,z,.95,.12,.18,mat(0x343d3d));
         const bulb=new THREE.Mesh(new THREE.SphereGeometry(.19,8,6),mats.lamp);
-        bulb.position.set(x+1.05,6.12,z);scene.add(bulb);
+        bulb.position.set(x+1.05,6.12,z);bulb.castShadow=false;scene.add(bulb);
         if(k%2===0) addTree(x+side*3,z+5,.8);
       }
     }
@@ -241,7 +241,7 @@ function createPlayer(){
   const skin=mat(0xc78f6c), hoodie=mat(0x263f55), pants=mat(0x252c34), shoe=mat(0x171c20), hair=mat(0x302923);
   const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.43,.55,4,8),hoodie);torso.position.y=1.48;torso.castShadow=true;player.add(torso);
   const neck=cylinder(player,0,1.97,0,.14,.14,.2,skin,8);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.31,16,12),skin);head.position.y=2.27;head.castShadow=true;player.add(head);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.31,16,12),skin);head.position.y=2.27;head.castShadow=quality.shadows;player.add(head);
   const hairCap=new THREE.Mesh(new THREE.SphereGeometry(.315,14,8,0,Math.PI*2,0,Math.PI*.48),hair);hairCap.position.y=2.34;player.add(hairCap);
   const frontHair=box(player,0,2.39,.25,.42,.14,.14,hair);
   const legs=[],arms=[];
