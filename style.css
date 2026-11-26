@@ -49,3 +49,11 @@ button{font:inherit;touch-action:none}
 #action.available{opacity:1;background:linear-gradient(135deg,#e5f66a,#ffb347);color:#263018;border-color:#fff;box-shadow:0 4px 0 #8c6427,0 8px 18px #0005}
 @media(max-width:480px){#wallet{top:calc(75px + env(safe-area-inset-top));right:10px}#action{right:17px;bottom:104px;min-width:124px;height:42px}}
 @media(min-width:700px){#action{right:38px;bottom:130px}}
+
+/* Live minimap with mission destination marker */
+#minimap-wrap{position:absolute;z-index:5;top:calc(142px + env(safe-area-inset-top));right:14px;width:150px;height:150px;border:2px solid #ffffffb8;border-radius:19px;overflow:hidden;background:#17271fdd;box-shadow:0 6px 0 #14232c66,0 10px 24px #0005;pointer-events:none}
+#minimap{display:block;width:100%;height:100%}
+#minimap-wrap span{position:absolute;left:8px;bottom:6px;font-size:8px;font-weight:1000;letter-spacing:1.2px;color:#fff;text-shadow:0 1px 4px #000}
+#minimap-wrap i{position:absolute;top:7px;right:8px;width:6px;height:6px;border-radius:50%;background:#9dff65;box-shadow:0 0 8px #9dff65}
+@media(max-width:480px){#minimap-wrap{top:calc(137px + env(safe-area-inset-top));right:10px;width:116px;height:116px;border-radius:15px}#mission{max-width:calc(100vw - 145px);min-width:0}#hint{top:205px;max-width:calc(100vw - 26px)}}
+@media(min-width:700px){#minimap-wrap{top:150px;right:24px;width:184px;height:184px}}
