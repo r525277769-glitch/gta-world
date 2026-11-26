@@ -1,4 +1,5 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
 const root = document.querySelector("#game");
 const loading = document.querySelector("#loading");
@@ -14,6 +15,13 @@ let joyPointer = null, lookPointer = null, lastX = 0, lastY = 0;
 let walkTime = 0;
 const colliders = [];
 const traffic = [];
+const gltfLoader = new GLTFLoader();
+const assetCache = new Map();
+let playerMixer = null;
+let playerActions = {};
+let activePlayerAction = null;
+const ASSET_ROOT = "https://raw.githubusercontent.com/kayquer/kit-cidade-lowpoly/main/models/";
+const KENNEY_ROOT = "https://raw.githubusercontent.com/shorepine/kenney/main/3d/mini-characters/";
 const mats = {};
 
 const palette = {
@@ -21,6 +29,28 @@ const palette = {
   grass: 0x718c69, sky: 0xa7cbd8
 };
 
+function loadAsset(url) {
+  if (!assetCache.has(url)) {
+    assetCache.set(url, new Promise((resolve, reject) => {
+      gltfLoader.load(url, gltf => resolve(gltf), undefined, reject);
+    }));
+  }
+  return assetCache.get(url);
+}
+function fitModel(source, target, maxHeight = 24, cloneSource = true) {
+  const model = cloneSource ? source.clone(true) : source;
+  model.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const scale = Math.min(target.x / Math.max(size.x,.001), target.z / Math.max(size.z,.001), maxHeight / Math.max(size.y,.001));
+  model.scale.setScalar(scale);
+  model.position.set(-center.x*scale, -bounds.min.y*scale, -center.z*scale);
+  model.traverse(o => {
+    if (o.isMesh) { o.castShadow = quality.shadows; o.receiveShadow = true; }
+  });
+  return model;
+}
 function mat(color, roughness = 0.88, extra = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.02, ...extra });
 }
@@ -140,6 +170,13 @@ function createBuilding(x,z,index) {
     cylinder(group,w*.27,h+1.3,d*.15,.65,.65,2.1,mat(0x8d9b98),12);
   }
   colliders.push({x,z,w:w+1.3,d:d+1.3});
+  const modelPath = index % 4 === 0 ? "residencial/predio_apartamentos.glb" :
+    index % 4 === 1 ? "comercial/escritorio.glb" :
+    index % 4 === 2 ? "comercial/hotel.glb" : "residencial/predio_alto.glb";
+  loadAsset(ASSET_ROOT + modelPath).then(gltf => {
+    const imported = fitModel(gltf.scene, new THREE.Vector3(w, 24, d), 25);
+    group.clear(); group.add(imported);
+  }).catch(err => console.warn("Building model fallback:", modelPath, err));
 }
 
 function addCity() {
@@ -216,6 +253,11 @@ function makeCar(color,x,z,rotation=0) {
     box(group,sx*.72,.62,-2.12,.35,.18,.12,mat(0xe34d40),false);
   }
   box(group,0,.24,0,1.5,.08,3.5,mat(0x22272a),false);
+  const modelPath = Math.random() < .18 ? "veiculos/taxi.glb" : "veiculos/carro.glb";
+  loadAsset(ASSET_ROOT + modelPath).then(gltf => {
+    const imported = fitModel(gltf.scene, new THREE.Vector3(2.2, 1.8, 4.25), 1.8);
+    group.clear(); group.add(imported);
+  }).catch(err => console.warn("Car model fallback:", err));
   return group;
 }
 function addTraffic() {
@@ -251,11 +293,31 @@ function createPlayer(){
     arms.push(limb(player,s*.53,1.77,0,.23,.78,.25,hoodie));
     const hand=new THREE.Mesh(new THREE.SphereGeometry(.12,8,8),skin);hand.position.set(s*.53,1.28,0);player.add(hand);
   }
-  player.userData={legs,arms,torso};
+  player.userData={legs,arms,torso,imported:false};
   player.position.set(0,.15,16);
+  loadAsset(KENNEY_ROOT + "character-male-c.glb").then(gltf => {
+    const imported = fitModel(gltf.scene, new THREE.Vector3(1.2, 2.2, 1.2), 2.15, false);
+    player.clear(); player.add(imported); player.userData.imported = true;
+    if (gltf.animations && gltf.animations.length) {
+      playerMixer = new THREE.AnimationMixer(imported);
+      for (const clip of gltf.animations) {
+        const key = clip.name.toLowerCase();
+        if (key.includes("walk")) playerActions.walk = playerMixer.clipAction(clip);
+        else if (key.includes("idle")) playerActions.idle = playerMixer.clipAction(clip);
+        else if (key.includes("run") || key.includes("sprint")) playerActions.run = playerMixer.clipAction(clip);
+      }
+      playPlayerAction("idle");
+    }
+  }).catch(err => console.warn("Character model fallback:", err));
   return player;
 }
 
+function playPlayerAction(name) {
+  if (!playerActions[name] || activePlayerAction === playerActions[name]) return;
+  const next = playerActions[name]; next.reset().fadeIn(.2).play();
+  if (activePlayerAction) activePlayerAction.fadeOut(.2);
+  activePlayerAction = next;
+}
 function setupLighting(){
   scene.background=new THREE.Color(palette.sky);
   scene.fog=new THREE.Fog(0xa7cbd8,125,310);
@@ -302,6 +364,7 @@ function setupControls(){
 }
 function update(dt){
   const moving=Math.hypot(moveX,moveZ)>.08;
+  if (playerMixer) { playerMixer.update(dt); playPlayerAction(!moving ? "idle" : (running ? "run" : "walk")); }
   if(moving){
     const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
     const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
@@ -314,9 +377,11 @@ function update(dt){
     walkTime+=dt*(running?12:8);
   }
   const swing=moving?Math.sin(walkTime)*.55:0;
-  player.userData.legs[0].rotation.x=swing;player.userData.legs[1].rotation.x=-swing;
-  player.userData.arms[0].rotation.x=-swing*.7;player.userData.arms[1].rotation.x=swing*.7;
-  player.userData.torso.position.y=1.48+(moving?Math.abs(Math.sin(walkTime*2))*.035:0);
+  if (!player.userData.imported) {
+    player.userData.legs[0].rotation.x=swing;player.userData.legs[1].rotation.x=-swing;
+    player.userData.arms[0].rotation.x=-swing*.7;player.userData.arms[1].rotation.x=swing*.7;
+    player.userData.torso.position.y=1.48+(moving?Math.abs(Math.sin(walkTime*2))*.035:0);
+  }
   traffic.forEach(t=>{
     t.mesh.position[t.axis]+=t.dir*t.speed*dt;
     if(t.mesh.position[t.axis]>120)t.mesh.position[t.axis]=-120;
