@@ -27,8 +27,8 @@ const homeSpawn = new THREE.Vector3(-154, .15, -140);
 const quests = [
   {name:"Первая доставка",npc:[10.7,17.2],item:[22,22],label:"ПОСЫЛКА",reward:5000,color:0x63e5a1},
   {name:"Срочная посылка",npc:[-96,-140],item:[-110,-110],label:"ГРУЗ",reward:7500,color:0xffbd55},
-  {name:"Потерянный кейс",npc:[120,130],item:[110,110],label:"КЕЙС",reward:10000,color:0x7b8cff},
-  {name:"Запчасти для механика",npc:[96,-96],item:[110,-66],label:"ЗАПЧАСТИ",reward:12500,color:0x55d8e8}
+  {name:"Потерянный кейс",npc:[120,130],item:[96,96],label:"КЕЙС",reward:10000,color:0x7b8cff},
+  {name:"Запчасти для механика",npc:[96,-96],item:[96,-52],label:"ЗАПЧАСТИ",reward:12500,color:0x55d8e8}
 ];
 const SAVE_KEY = "gtaworld-save-v1";
 try {
@@ -736,7 +736,7 @@ function setupWorldActivities(){
   homeMarker.userData.isHome=true;
   // Three public parking hubs with marked bays and rentable-looking cars.
   parkingCars=[];
-  const lots=[{x:22,z:-22,colors:[0x2474a8,0xd2a53c]},{x:-22,z:22,colors:[0xc64f43,0x4d8067]},{x:154,z:-110,colors:[0x7c6acb,0xe4e5e1]}];
+  const lots=[{x:22,z:-22,colors:[0x2474a8,0xd2a53c]},{x:-22,z:22,colors:[0xc64f43,0x4d8067]},{x:170,z:-110,colors:[0x7c6acb,0xe4e5e1]}];
   lots.forEach((lot,li)=>{
     const pad=new THREE.Mesh(new THREE.PlaneGeometry(13,9),mats.sidewalk);pad.rotation.x=-Math.PI/2;pad.position.set(lot.x,.055,lot.z);scene.add(pad);
     for(let k=0;k<2;k++){
