@@ -23,8 +23,11 @@ let activePlayerAction = null;
 const ASSET_ROOT = "https://raw.githubusercontent.com/kayquer/kit-cidade-lowpoly/main/models/";
 const KENNEY_ROOT = "https://raw.githubusercontent.com/shorepine/kenney/main/3d/mini-characters/";
 const mats = {};
+const isMobile = matchMedia("(max-width: 700px)").matches;
 const quality = {
-  shadows: !matchMedia("(max-width: 700px)").matches
+  shadows: true,
+  shadowSize: isMobile ? 1024 : 2048,
+  pixelRatio: isMobile ? 1.5 : 1.8
 };
 
 const palette = {
@@ -54,29 +57,35 @@ function fitModel(source, target, maxHeight = 24, cloneSource = true) {
   });
   return model;
 }
-function mat(color, roughness = 0.88, extra = {}) {
-  // Bright cel-shaded materials give the city a playful animated-film look.
-  return new THREE.MeshToonMaterial({ color, ...extra });
+function mat(color, roughness = 0.78, extra = {}) {
+  // Hybrid look: physically based surfaces with bold, saturated game colors.
+  return new THREE.MeshStandardMaterial({ color, roughness, ...extra });
 }
 function cartoonizeModel(root) {
   root.traverse(o => {
     if (!o.isMesh) return;
     const convert = source => {
       if (!source || source.isMeshToonMaterial) return source;
-      const toon = new THREE.MeshToonMaterial({
+      const material = new THREE.MeshStandardMaterial({
         color: source.color ? source.color.clone() : 0xffffff,
         map: source.map || null,
         alphaMap: source.alphaMap || null,
+        normalMap: source.normalMap || null,
+        roughnessMap: source.roughnessMap || null,
+        metalnessMap: source.metalnessMap || null,
+        aoMap: source.aoMap || null,
+        emissive: source.emissive ? source.emissive.clone() : 0x000000,
+        emissiveMap: source.emissiveMap || null,
+        roughness: source.roughness ?? 0.82,
+        metalness: source.metalness ?? 0.04,
         transparent: source.transparent || false,
         opacity: source.opacity ?? 1,
-        side: source.side,
-        emissive: source.emissive ? source.emissive.clone() : 0x000000,
-        emissiveMap: source.emissiveMap || null
+        side: source.side
       });
-      toon.vertexColors = source.vertexColors;
-      toon.skinning = source.skinning;
-      toon.morphTargets = source.morphTargets;
-      return toon;
+      material.vertexColors = source.vertexColors;
+      material.skinning = source.skinning;
+      material.morphTargets = source.morphTargets;
+      return material;
     };
     o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
     o.castShadow = quality.shadows;
@@ -173,7 +182,7 @@ function createBuilding(x,z,index) {
   const w=13+(index%3)*2, d=12+(index%2)*2, floors=3+(index*7%5), h=floors*3.15;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
   const facade=mats.facades[index%mats.facades.length];
-  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshToonMaterial({map:facade}));
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,roughness:.9,metalness:.02}));
   body.position.y=h/2+.22; body.castShadow=true; body.receiveShadow=true; group.add(body);
   const outline=new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(w+.035,h+.035,d+.035),25),
@@ -204,14 +213,8 @@ function createBuilding(x,z,index) {
     cylinder(group,w*.27,h+1.3,d*.15,.65,.65,2.1,mat(0x8d9b98),12);
   }
   colliders.push({x,z,w:w+1.3,d:d+1.3});
-  const modelPath = index % 4 === 0 ? "residencial/predio_apartamentos.glb" :
-    index % 4 === 1 ? "comercial/escritorio.glb" :
-    index % 4 === 2 ? "comercial/hotel.glb" : "residencial/predio_alto.glb";
-  loadAsset(ASSET_ROOT + modelPath).then(gltf => {
-    const imported = fitModel(gltf.scene, new THREE.Vector3(w, 24, d), 25);
-    cartoonizeModel(imported);
-    group.clear(); group.add(imported);
-  }).catch(err => console.warn("Building model fallback:", modelPath, err));
+  // Keep the detailed procedural facade instead of replacing it with a much simpler low-poly placeholder.
+  // Recessed windows, ledges and rooftop equipment remain crisp on mobile screens.
 }
 
 function addCity() {
@@ -363,11 +366,15 @@ function playPlayerAction(name) {
 function setupLighting(){
   scene.background=new THREE.Color(0x8ed8ff);
   scene.fog=new THREE.Fog(0x8ed8ff,145,330);
-  scene.add(new THREE.HemisphereLight(0xffffff,0x82915b,2.05));
-  sun=new THREE.DirectionalLight(0xfff1c7,2.8);
+  scene.add(new THREE.HemisphereLight(0xeaf7ff,0x65734f,1.55));
+  const fill = new THREE.DirectionalLight(0xb8d9ff,0.55);
+  fill.position.set(55,35,-70);
+  scene.add(fill);
+  sun=new THREE.DirectionalLight(0xffedcf,3.1);
   sun.position.set(-65,95,50);sun.castShadow=true;
-  sun.shadow.mapSize.set(1536,1536);
-  sun.shadow.camera.left=-115;sun.shadow.camera.right=115;sun.shadow.camera.top=115;sun.shadow.camera.bottom=-115;
+  sun.shadow.mapSize.set(quality.shadowSize,quality.shadowSize);
+  sun.shadow.camera.left=-82;sun.shadow.camera.right=82;sun.shadow.camera.top=82;sun.shadow.camera.bottom=-82;
+  sun.shadow.camera.near=1;sun.shadow.camera.far=220;
   sun.shadow.bias=-.00025;sun.shadow.normalBias=.035;
   scene.add(sun);
 }
@@ -376,7 +383,7 @@ function resize(){
   if(!renderer||!camera)return;
   camera.aspect=root.clientWidth/root.clientHeight;camera.updateProjectionMatrix();
   renderer.setSize(root.clientWidth,root.clientHeight,false);
-  renderer.setPixelRatio(Math.min(devicePixelRatio||1, matchMedia("(max-width: 700px)").matches ? 1.25 : 1.6));
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1, quality.pixelRatio));
 }
 function blocked(x,z){
   for(const b of colliders) if(Math.abs(x-b.x)<b.w/2+.55&&Math.abs(z-b.z)<b.d/2+.55)return true;
@@ -442,11 +449,11 @@ function animate(){
 try{
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(62,1,.1,500);
-   renderer=new THREE.WebGLRenderer({antialias:!(matchMedia("(max-width: 700px)").matches),powerPreference:"high-performance",alpha:false});
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance",alpha:false});
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.28;
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMappingExposure=1.12;
+  renderer.shadowMap.enabled=quality.shadows;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   root.insertBefore(renderer.domElement,root.firstChild);
   clock=new THREE.Clock();
   makeTextures();setupLighting();addRoads();addCity();addStreetFurniture();addTraffic();createPlayer();setupControls();resize();
