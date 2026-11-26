@@ -28,10 +28,10 @@ let parkingCars = [], homeMarker = null, questNpcs = [], questIndex = 0, questSt
 let missionState = "new", cash = 0, gramm = 0, actionTarget = null, actionRefresh = 0;
 const homeSpawn = new THREE.Vector3(-154, .15, -140);
 const quests = [
-  {name:"Первая доставка",npc:[10.7,17.2],item:[22,22],label:"ПОСЫЛКА",reward:5000,color:0x63e5a1},
-  {name:"Срочная посылка",npc:[-96,-140],item:[-110,-110],label:"ГРУЗ",reward:7500,color:0xffbd55},
-  {name:"Потерянный кейс",npc:[120,130],item:[96,96],label:"КЕЙС",reward:10000,color:0x7b8cff},
-  {name:"Запчасти для механика",npc:[96,-96],item:[96,-52],label:"ЗАПЧАСТИ",reward:12500,color:0x55d8e8}
+  {name:"Первая доставка",npc:[10.7,17.2],item:[22,27],label:"ПОСЫЛКА",reward:5000,color:0x63e5a1},
+  {name:"Срочная посылка",npc:[-96,-140],item:[-98,-132],label:"ГРУЗ",reward:7500,color:0xffbd55},
+  {name:"Потерянный кейс",npc:[120,130],item:[88,132],label:"КЕЙС",reward:10000,color:0x7b8cff},
+  {name:"Запчасти для механика",npc:[96,-96],item:[88,-88],label:"ЗАПЧАСТИ",reward:12500,color:0x55d8e8}
 ];
 const SAVE_KEY = "gtaworld-save-v1";
 try {
@@ -920,54 +920,39 @@ function setupControls(){
 }
 function drawMinimap(dt){
   mapRefresh+=dt;
-  if(mapRefresh<.08)return;
+  if(mapRefresh<.065)return;
   mapRefresh=0;
   const ctx=mapCtx,w=minimap.width,h=minimap.height,cx=w/2,cy=h/2;
-  ctx.clearRect(0,0,w,h);
-  ctx.save();
-  ctx.beginPath();ctx.roundRect(0,0,w,h,18);ctx.clip();
-  ctx.fillStyle="#263c32";ctx.fillRect(0,0,w,h);
   const px=driving&&drivingCar?drivingCar.position.x:player.position.x;
   const pz=driving&&drivingCar?drivingCar.position.z:player.position.z;
-  const scale=w/230;
-  const sx=x=>cx+(x-px)*scale, sy=z=>cy+(z-pz)*scale;
-  // City blocks and the complete street grid.
-  ctx.fillStyle="#58734d";
+  const scale=w/190;
+  ctx.clearRect(0,0,w,h);ctx.save();
+  ctx.beginPath();ctx.roundRect(0,0,w,h,24);ctx.clip();
+  const bg=ctx.createLinearGradient(0,0,w,h);bg.addColorStop(0,"#172a32");bg.addColorStop(1,"#101d25");ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+  // Rotate the world around the player so the direction of travel stays at the top.
+  ctx.translate(cx,cy);ctx.rotate(-yaw);
+  const sx=x=>(x-px)*scale, sy=z=>(z-pz)*scale;
+  // City blocks, landscaped parks and the complete road network.
   for(let x=-176;x<=176;x+=44)for(let z=-176;z<=176;z+=44){
-    ctx.fillRect(sx(x-14),sy(z-14),28*scale,28*scale);
+    const park=Math.abs(x)===22&&Math.abs(z)===22;
+    ctx.fillStyle=park?"#47794c":"#34464a";ctx.fillRect(sx(x-14),sy(z-14),28*scale,28*scale);
+    if(park){ctx.fillStyle="#6da95d";ctx.fillRect(sx(x-8),sy(z-8),16*scale,16*scale);ctx.strokeStyle="#b9c8a0";ctx.lineWidth=1.1;ctx.strokeRect(sx(x-8),sy(z-8),16*scale,16*scale);ctx.strokeStyle="#d0c8ae";ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(sx(x-6),sy(z));ctx.lineTo(sx(x+6),sy(z));ctx.moveTo(sx(x),sy(z-6));ctx.lineTo(sx(x),sy(z+6));ctx.stroke();}
   }
-  ctx.strokeStyle="#8c9691";ctx.lineWidth=5*scale;
-  for(let p=-176;p<=176;p+=44){
-    ctx.beginPath();ctx.moveTo(sx(p),sy(-210));ctx.lineTo(sx(p),sy(210));ctx.stroke();
-    ctx.beginPath();ctx.moveTo(sx(-210),sy(p));ctx.lineTo(sx(210),sy(p));ctx.stroke();
-  }
-  ctx.strokeStyle="#d9d6bd";ctx.lineWidth=1.2;
-  for(let p=-176;p<=176;p+=44){
-    ctx.beginPath();ctx.moveTo(sx(p),sy(-210));ctx.lineTo(sx(p),sy(210));ctx.stroke();
-    ctx.beginPath();ctx.moveTo(sx(-210),sy(p));ctx.lineTo(sx(210),sy(p));ctx.stroke();
-  }
-  // Objective marker follows the active contract: parcel while collecting, client on return.
-  let target=null,targetColor="#ffd84d";
-  if(questIndex<quests.length){
-    if(questStage==="collect"&&missionPackage?.visible)target=missionPackage.position;
-    else if((questStage==="talk"||questStage==="return")&&npc?.visible)target=npc.position;
-  }
-  if(target){
-    const tx=sx(target.x),ty=sy(target.z);
-    ctx.strokeStyle=targetColor;ctx.lineWidth=2;ctx.setLineDash([4,3]);
-    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(tx,ty);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle=targetColor;ctx.beginPath();ctx.arc(tx,ty,5+Math.sin(clock.elapsedTime*5)*1.2,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle="#fff";ctx.lineWidth=1.5;ctx.stroke();
-  }
-  // Home and vehicle parking locations.
-  if(homeMarker){ctx.fillStyle="#70dcff";ctx.beginPath();ctx.arc(sx(homeMarker.position.x),sy(homeMarker.position.z),3,0,Math.PI*2);ctx.fill();}
-  for(const car of parkingCars){ctx.fillStyle="#c5d5df";ctx.fillRect(sx(car.position.x)-2,sy(car.position.z)-2,4,4);}
-  // Player arrow points toward the current facing direction.
-  ctx.translate(cx,cy);ctx.rotate(yaw);
-  ctx.fillStyle="#fff";ctx.strokeStyle="#15242c";ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(6,6);ctx.lineTo(0,3);ctx.lineTo(-6,6);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.fillStyle="#68777a";
+  for(let p=-176;p<=176;p+=44){ctx.fillRect(sx(p-3.8),sy(-210),7.6*scale,420*scale);ctx.fillRect(sx(-210),sy(p-3.8),420*scale,7.6*scale);}
+  ctx.fillStyle="#9ca7a2";
+  for(let p=-176;p<=176;p+=44){ctx.fillRect(sx(p-5.3),sy(-210),.8*scale,420*scale);ctx.fillRect(sx(-210),sy(p-5.3),420*scale,.8*scale);}
+  ctx.fillStyle="#d5cda9";
+  for(let p=-176;p<=176;p+=44){for(let z=-196;z<196;z+=18)ctx.fillRect(sx(p)-.45,sy(z),.9,5);for(let x=-196;x<196;x+=18)ctx.fillRect(sx(x),sy(p)-.45,5,.9);}
+  let target=null;
+  if(questIndex<quests.length){if(questStage==="collect"&&missionPackage?.visible)target=missionPackage.position;else if((questStage==="talk"||questStage==="return")&&npc?.visible)target=npc.position;}
+  if(target){const tx=sx(target.x),ty=sy(target.z);ctx.strokeStyle="#ffd34e";ctx.lineWidth=2.6;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(tx,ty);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#ffd34e";ctx.beginPath();ctx.arc(tx,ty,7+Math.sin(clock.elapsedTime*5)*1.5,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fff7d8";ctx.lineWidth=2;ctx.stroke();}
+  if(homeMarker){ctx.fillStyle="#65d8ff";ctx.beginPath();ctx.arc(sx(homeMarker.position.x),sy(homeMarker.position.z),4,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#e8faff";ctx.lineWidth=1.5;ctx.stroke();}
+  for(const car of parkingCars){ctx.fillStyle="#d8e4e7";ctx.fillRect(sx(car.position.x)-2.5,sy(car.position.z)-2.5,5,5);}
+  ctx.fillStyle="#fff";ctx.strokeStyle="#14232a";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(7,7);ctx.lineTo(0,4);ctx.lineTo(-7,7);ctx.closePath();ctx.fill();ctx.stroke();
   ctx.restore();
-  ctx.fillStyle="#ffffff";ctx.font="bold 9px Arial";ctx.textAlign="left";ctx.fillText("N",8,13);
+  ctx.fillStyle="#ffffffd9";ctx.font="900 11px Arial";ctx.textAlign="center";ctx.fillText("N",w/2,15);
+  ctx.strokeStyle="#ffffff22";ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,w*.43,0,Math.PI*2);ctx.stroke();
 }
 function update(dt){
   drawMinimap(dt);
