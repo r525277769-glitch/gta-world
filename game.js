@@ -551,30 +551,85 @@ function addStreetFurniture() {
   }
 }
 function makeCar(color,x,z,rotation=0) {
-  const group=new THREE.Group();group.position.set(x,.25,z);group.rotation.y=rotation;scene.add(group);
-  const bodyMat=mat(color,.38,{metalness:.22});
-  box(group,0,.55,0,2.15,.68,4.2,bodyMat);
-  box(group,0,1.05,-.25,1.72,.78,2.15,mat(0x344b57,.2,{metalness:.25}));
-  box(group,0,1.06,-.25,1.56,.6,2.0,mat(0x72929b,.18,{metalness:.28,transparent:true,opacity:.78}));
-  box(group,0,1.48,-.25,1.9,.1,2.3,bodyMat);
-  for(const sx of [-1,1]){
-    for(const sz of [-1.35,1.35]){
-      const wheel=cylinder(group,sx*1.08,.35,sz,.39,.39,.22,mat(0x171b1d),12);
-      wheel.rotation.z=Math.PI/2;
-      const hub=cylinder(group,sx*1.205,.35,sz,.17,.17,.035,mat(0x9ba2a1),10);
-      hub.rotation.z=Math.PI/2;
+  const group=new THREE.Group();group.position.set(x,.18,z);group.rotation.y=rotation;scene.add(group);
+  const paint=new THREE.MeshStandardMaterial({color,roughness:.28,metalness:.68});
+  const paintDark=new THREE.MeshStandardMaterial({color:0x202a32,roughness:.42,metalness:.48});
+  const glass=new THREE.MeshPhysicalMaterial({color:0x9fc8d8,roughness:.12,metalness:.18,transparent:true,opacity:.72,clearcoat:1,clearcoatRoughness:.08});
+  const rubber=new THREE.MeshStandardMaterial({color:0x111418,roughness:.88,metalness:.02});
+  const rim=new THREE.MeshStandardMaterial({color:0xb8c4cb,roughness:.22,metalness:.88});
+  const chrome=new THREE.MeshStandardMaterial({color:0xd5e0e4,roughness:.2,metalness:.9});
+  const headlamp=new THREE.MeshStandardMaterial({color:0xfff2ce,emissive:0xffd78a,emissiveIntensity:.65,roughness:.2});
+  const taillamp=new THREE.MeshStandardMaterial({color:0xc51e20,emissive:0x8b1010,emissiveIntensity:.5,roughness:.25});
+  // Sculpted lower body, hood, trunk and raised cabin.
+  box(group,0,.58,0,2.08,.58,4.18,paint);
+  box(group,0,.88,1.22,1.98,.25,1.18,paint);
+  box(group,0,.86,-1.48,1.96,.26,.92,paint);
+  const cabin=box(group,0,1.28,-.22,1.66,.86,2.05,paint);
+  const roof=box(group,0,1.76,-.25,1.55,.12,1.82,paint);
+  // Front and rear glass plus four side windows.
+  box(group,0,1.34,.66,1.48,.59,.045,glass);
+  box(group,0,1.34,-1.18,1.46,.56,.045,glass);
+  for(const side of [-1,1]){
+    box(group,side*.842,1.37,-.23,.035,.52,1.72,glass);
+    box(group,side*.87,1.02,-.2,.045,.12,1.78,paintDark,false);
+    box(group,side*.86,1.1,-.25,.055,.045,1.84,chrome,false);
+    // Door seams, handles and mirrors.
+    for(const dz of [-.68,.53]) box(group,side*1.047,.61,dz,.018,.38,.012,paintDark,false);
+    box(group,side*1.075,.91,-.55,.045,.055,.22,chrome,false);
+    const mirror=box(group,side*1.02,1.19,.62,.2,.13,.22,paint,false);mirror.rotation.z=side*.12;
+    // Tires, alloy rims and hubs.
+    for(const dz of [-1.35,1.35]){
+      const tire=cylinder(group,side*1.04,.4,dz,.39,.39,.24,rubber,20);tire.rotation.z=Math.PI/2;
+      const wheel=cylinder(group,side*1.18,.4,dz,.265,.265,.045,rim,20);wheel.rotation.z=Math.PI/2;
+      const hub=cylinder(group,side*1.21,.4,dz,.095,.095,.052,paintDark,16);hub.rotation.z=Math.PI/2;
+      for(let k=0;k<5;k++){const a=k*Math.PI*2/5;const spoke=box(group,side*1.213,.4+Math.sin(a)*.16,dz+Math.cos(a)*.16,.045,.29,.055,chrome,false);spoke.rotation.x=a;}
+      const arch=new THREE.Mesh(new THREE.TorusGeometry(.43,.055,8,24,Math.PI),paintDark);arch.position.set(side*1.04,.43,dz);arch.rotation.y=Math.PI/2;arch.rotation.z=Math.PI;group.add(arch);
     }
-    box(group,sx*.72,.62,2.12,.35,.18,.12,mat(0xffe3a1,.25,{emissive:0x8c5b20,emissiveIntensity:.25}),false);
-    box(group,sx*.72,.62,-2.12,.35,.18,.12,mat(0xe34d40),false);
   }
-  box(group,0,.24,0,1.5,.08,3.5,mat(0x22272a),false);
+  // Bumpers, grille, LED headlights, rear lights and license plates.
+  box(group,0,.48,2.105,1.86,.22,.13,paintDark);
+  box(group,0,.72,2.13,.82,.22,.045,chrome,false);
+  box(group,0,.69,2.16,.58,.1,.025,paintDark,false);
+  box(group,0,.42,-2.12,1.9,.2,.14,paintDark);
+  for(const side of [-1,1]){
+    box(group,side*.72,.78,2.13,.38,.17,.06,headlamp,false);
+    box(group,side*.75,.76,-2.13,.34,.18,.055,taillamp,false);
+    box(group,side*.53,.47,-2.2,.24,.055,.025,chrome,false);
+    box(group,side*.8,.34,2.15,.25,.07,.04,paintDark,false);
+  }
+  box(group,0,.53,2.205,.42,.13,.018,chrome,false);
+  box(group,0,.53,-2.205,.42,.13,.018,chrome,false);
+  // Subtle windshield wipers and roof antenna.
+  for(const side of [-1,1]){const wiper=box(group,side*.28,1.055,.69,.035,.025,.65,paintDark,false);wiper.rotation.x=-.12;}
+  const antenna=cylinder(group,.58,1.88,-.82,.018,.025,.32,paintDark,7);antenna.rotation.z=-.16;
   const modelPath = Math.random() < .18 ? "veiculos/taxi.glb" : "veiculos/carro.glb";
   loadAsset(ASSET_ROOT + modelPath).then(gltf => {
-    const imported = fitModel(gltf.scene, new THREE.Vector3(2.2, 1.8, 4.25), 1.8);
-    cartoonizeModel(imported);
-    group.clear(); group.add(imported);
-  }).catch(err => console.warn("Car model fallback:", err));
+    const imported=fitModel(gltf.scene,new THREE.Vector3(2.2,1.95,4.35),1.95);
+    enhanceVehicleModel(imported);
+    group.clear();group.add(imported);
+  }).catch(err=>console.warn("Car model fallback:",err));
   return group;
+}
+function enhanceVehicleModel(root){
+  root.traverse(o=>{
+    if(!o.isMesh)return;
+    const convert=source=>{
+      if(!source)return source;
+      const m=new THREE.MeshStandardMaterial({
+        color:source.color?source.color.clone():0xffffff,
+        map:source.map||null,normalMap:source.normalMap||null,
+        roughness:source.roughness===undefined?.42:Math.max(.16,source.roughness),
+        metalness:source.metalness===undefined?.28:Math.max(.08,source.metalness),
+        emissive:source.emissive?source.emissive.clone():0x000000,
+        emissiveMap:source.emissiveMap||null,
+        transparent:source.transparent||false,opacity:source.opacity??1,
+        side:source.side,vertexColors:source.vertexColors
+      });
+      m.envMapIntensity=1.15;return m;
+    };
+    o.material=Array.isArray(o.material)?o.material.map(convert):convert(o.material);
+    o.castShadow=quality.shadows;o.receiveShadow=true;
+  });
 }
 function addTraffic() {
   const colors=[0xc64f43,0x315c82,0xd3b44c,0xddddda,0x343c42,0x4d8067];
@@ -593,15 +648,40 @@ function addTraffic() {
 
 function createNpc(x,z) {
   const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
-  const skin=mat(0xb77c5c), jacket=mat(0x9b4b32), pants=mat(0x303a48), dark=mat(0x292322);
-  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.36,.65,4,9),jacket);body.position.y=1.15;body.castShadow=true;g.add(body);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,16,12),skin);head.position.y=1.9;head.castShadow=true;g.add(head);
-  const hair=new THREE.Mesh(new THREE.SphereGeometry(.275,14,9,0,Math.PI*2,0,Math.PI*.52),dark);hair.position.y=2.02;g.add(hair);
+  const skin=mat(0xc98f70), skinDark=mat(0x9e654d), jacket=mat(0x246c85), jacketDark=mat(0x174b61),
+    pants=mat(0x303b50), shoe=mat(0x20252c), hair=mat(0x29211d), white=mat(0xf2eee3),
+    eye=mat(0x25282b), accent=mat(0xe4a83b);
+  // Layered torso, collar, zipper and belt make the NPC read as a dressed human.
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.34,.62,5,12),jacket);torso.position.y=1.36;torso.castShadow=true;g.add(torso);
+  const chest=box(g,0,1.48,.285,.39,.38,.12,jacketDark);
+  box(g,0,1.12,.31,.48,.07,.09,accent,false);
+  cylinder(g,0,1.82,0,.13,.14,.2,skin,12);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.265,20,16),skin);head.position.set(0,2.02,0);head.castShadow=true;g.add(head);
+  // Hair cap and short side locks.
+  const hairCap=new THREE.Mesh(new THREE.SphereGeometry(.273,18,12,0,Math.PI*2,0,Math.PI*.58),hair);hairCap.position.set(0,2.12,-.005);g.add(hairCap);
+  box(g,0,2.105,.235,.32,.12,.095,hair,false);
+  for(const side of [-1,1]) box(g,side*.235,1.99,0,.075,.23,.18,hair,false);
+  // Face: eyes, brows, nose and mouth, all facing the camera/front (+Z).
   for(const side of [-1,1]){
-    const arm=box(g,side*.47,1.2,0,.19,.72,.2,jacket);arm.rotation.z=side*.12;
-    box(g,side*.19,.47,0,.24,.72,.27,pants);
-    box(g,side*.19,.12,.08,.27,.18,.42,mat(0x171b20));
+    const e=new THREE.Mesh(new THREE.SphereGeometry(.027,10,8),white);e.position.set(side*.092,2.035,.235);g.add(e);
+    const pupil=new THREE.Mesh(new THREE.SphereGeometry(.013,8,6),eye);pupil.position.set(side*.092,2.035,.258);g.add(pupil);
+    box(g,side*.092,2.092,.238,.075,.018,.025,hair,false);
   }
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(.038,10,8),skinDark);nose.position.set(0,1.99,.264);nose.scale.set(.75,1,.8);g.add(nose);
+  box(g,0,1.925,.249,.09,.018,.025,skinDark,false);
+  // Arms with shoulder caps, forearms and hands.
+  for(const side of [-1,1]){
+    const upper=new THREE.Mesh(new THREE.CapsuleGeometry(.105,.34,4,10),jacket);upper.position.set(side*.43,1.39,0);upper.rotation.z=-side*.12;upper.castShadow=true;g.add(upper);
+    const cuff=new THREE.Mesh(new THREE.CylinderGeometry(.105,.095,.12,12),jacketDark);cuff.position.set(side*.48,1.13,.015);cuff.rotation.z=-side*.12;g.add(cuff);
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(.105,12,10),skin);hand.position.set(side*.49,1.015,.025);g.add(hand);
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.145,.52,4,10),pants);leg.position.set(side*.19,.57,0);leg.castShadow=true;g.add(leg);
+    box(g,side*.19,.16,.095,.31,.2,.48,shoe);
+    box(g,side*.19,.265,.165,.29,.045,.29,mat(0x9aa6b0),false);
+  }
+  // Hood, pockets, seams and a small shoulder patch.
+  const hood=new THREE.Mesh(new THREE.TorusGeometry(.22,.065,8,16,Math.PI),jacketDark);hood.position.set(0,1.72,-.12);hood.rotation.x=Math.PI/2;g.add(hood);
+  box(g,-.16,1.25,.3,.105,.16,.035,accent,false);
+  box(g,.15,1.25,.3,.105,.16,.035,accent,false);
   const marker=new THREE.Group();marker.position.set(0,3.05,0);g.add(marker);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.42,.07,8,24),mat(0xffd34d,.35,{emissive:0x9b6b12,emissiveIntensity:.35}));ring.rotation.x=Math.PI/2;marker.add(ring);
   const pin=new THREE.Mesh(new THREE.SphereGeometry(.16,12,10),mat(0xffe17a,.3,{emissive:0x9b6b12,emissiveIntensity:.5}));pin.position.y=.25;marker.add(pin);
