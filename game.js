@@ -208,7 +208,11 @@ function addTree(x,z,scale=1) {
   const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.8,1),mats.leaf[Math.floor(Math.abs(x+z))%3]);
   crown.position.y=3.25;crown.scale.set(1,1.25,.95);crown.castShadow=true;group.add(crown);
   const crown2=new THREE.Mesh(new THREE.IcosahedronGeometry(1.1,0),mats.leaf[1]);
-  crown2.position.set(.7,3.6,.2);crown2.castShadow=true;group.add(crown2);
+  crown2.position.set(.7,3.6,.2);crown2.castShadow=quality.shadows;group.add(crown2);
+  loadAsset(ASSET_ROOT + "vegetacao/ipe_amarelo.glb").then(gltf => {
+    const imported = fitModel(gltf.scene, new THREE.Vector3(3.8, 7, 3.8), 7);
+    group.clear(); group.add(imported);
+  }).catch(err => console.warn("Tree model fallback:", err));
 }
 function addStreetFurniture() {
   for(let road=-2;road<=2;road++){
