@@ -13,6 +13,9 @@ const walletHud = document.querySelector("#wallet");
 const missionHud = document.querySelector("#mission");
 const missionTitle = missionHud.querySelector("strong");
 const missionSub = missionHud.querySelector("span");
+const minimap = document.querySelector("#minimap");
+const mapCtx = minimap.getContext("2d");
+let mapRefresh = 0;
 
 let scene, camera, renderer, clock, player, sun;
 let yaw = 0, pitch = 0.18, moveX = 0, moveZ = 0, running = false;
@@ -915,7 +918,59 @@ function setupControls(){
   window.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key==="Shift")running=true;moveX=(keys.a||keys.arrowleft?-1:0)+(keys.d||keys.arrowright?1:0);moveZ=(keys.w||keys.arrowup?-1:0)+(keys.s||keys.arrowdown?1:0);});
   window.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;if(e.key==="Shift")running=false;moveX=(keys.a||keys.arrowleft?-1:0)+(keys.d||keys.arrowright?1:0);moveZ=(keys.w||keys.arrowup?-1:0)+(keys.s||keys.arrowdown?1:0);});
 }
+function drawMinimap(dt){
+  mapRefresh+=dt;
+  if(mapRefresh<.08)return;
+  mapRefresh=0;
+  const ctx=mapCtx,w=minimap.width,h=minimap.height,cx=w/2,cy=h/2;
+  ctx.clearRect(0,0,w,h);
+  ctx.save();
+  ctx.beginPath();ctx.roundRect(0,0,w,h,18);ctx.clip();
+  ctx.fillStyle="#263c32";ctx.fillRect(0,0,w,h);
+  const px=driving&&drivingCar?drivingCar.position.x:player.position.x;
+  const pz=driving&&drivingCar?drivingCar.position.z:player.position.z;
+  const scale=w/230;
+  const sx=x=>cx+(x-px)*scale, sy=z=>cy+(z-pz)*scale;
+  // City blocks and the complete street grid.
+  ctx.fillStyle="#58734d";
+  for(let x=-176;x<=176;x+=44)for(let z=-176;z<=176;z+=44){
+    ctx.fillRect(sx(x-14),sy(z-14),28*scale,28*scale);
+  }
+  ctx.strokeStyle="#8c9691";ctx.lineWidth=5*scale;
+  for(let p=-176;p<=176;p+=44){
+    ctx.beginPath();ctx.moveTo(sx(p),sy(-210));ctx.lineTo(sx(p),sy(210));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx(-210),sy(p));ctx.lineTo(sx(210),sy(p));ctx.stroke();
+  }
+  ctx.strokeStyle="#d9d6bd";ctx.lineWidth=1.2;
+  for(let p=-176;p<=176;p+=44){
+    ctx.beginPath();ctx.moveTo(sx(p),sy(-210));ctx.lineTo(sx(p),sy(210));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx(-210),sy(p));ctx.lineTo(sx(210),sy(p));ctx.stroke();
+  }
+  // Objective marker follows the active contract: parcel while collecting, client on return.
+  let target=null,targetColor="#ffd84d";
+  if(questIndex<quests.length){
+    if(questStage==="collect"&&missionPackage?.visible)target=missionPackage.position;
+    else if((questStage==="talk"||questStage==="return")&&npc?.visible)target=npc.position;
+  }
+  if(target){
+    const tx=sx(target.x),ty=sy(target.z);
+    ctx.strokeStyle=targetColor;ctx.lineWidth=2;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(tx,ty);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=targetColor;ctx.beginPath();ctx.arc(tx,ty,5+Math.sin(clock.elapsedTime*5)*1.2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="#fff";ctx.lineWidth=1.5;ctx.stroke();
+  }
+  // Home and vehicle parking locations.
+  if(homeMarker){ctx.fillStyle="#70dcff";ctx.beginPath();ctx.arc(sx(homeMarker.position.x),sy(homeMarker.position.z),3,0,Math.PI*2);ctx.fill();}
+  for(const car of parkingCars){ctx.fillStyle="#c5d5df";ctx.fillRect(sx(car.position.x)-2,sy(car.position.z)-2,4,4);}
+  // Player arrow points toward the current facing direction.
+  ctx.translate(cx,cy);ctx.rotate(yaw);
+  ctx.fillStyle="#fff";ctx.strokeStyle="#15242c";ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(6,6);ctx.lineTo(0,3);ctx.lineTo(-6,6);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle="#ffffff";ctx.font="bold 9px Arial";ctx.textAlign="left";ctx.fillText("N",8,13);
+}
 function update(dt){
+  drawMinimap(dt);
   actionRefresh+=dt;
   if(actionRefresh>.18){actionRefresh=0;refreshInteraction();}
   const moving=Math.hypot(moveX,moveZ)>.08;
