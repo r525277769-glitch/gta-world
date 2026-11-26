@@ -267,12 +267,7 @@ function addCity() {
       for(const leg of [-.75,.75]) box(scene,bx+leg,.27,cz,.12,.54,.12,mat(0x343a3c),false);
     }
   }
-  // Keep the centre of the four-way intersection clear: no oversized plaza or trees on asphalt.
-  const island=new THREE.Mesh(new THREE.CylinderGeometry(1.9,2.2,.28,24),mat(0xbab6a9));
-  island.position.set(0,.18,0); island.castShadow=true; scene.add(island);
-  const water=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,.07,32),mat(0x3d9eaf,.2,{metalness:.18}));
-  water.position.set(0,.36,0); scene.add(water);
-  cylinder(scene,0,.78,0,.12,.18,.78,mat(0xcbd9d5));
+  // The four-way intersection stays completely clear for traffic and pedestrians.
 }
 function addTree(x, z, scale = 1) {
   const group = new THREE.Group();
