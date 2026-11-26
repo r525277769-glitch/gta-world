@@ -75,9 +75,18 @@ function fitModel(source, target, maxHeight = 24, cloneSource = true) {
   });
   return model;
 }
+let toonGradient;
 function mat(color, roughness = 0.78, extra = {}) {
-  // Hybrid look: physically based surfaces with bold, saturated game colors.
-  return new THREE.MeshStandardMaterial({ color, roughness, ...extra });
+  // Bold, stepped lighting gives props and street furniture a stylized battle-royale look.
+  return new THREE.MeshToonMaterial({ color, gradientMap: toonGradient || null, ...extra });
+}
+function createToonGradient() {
+  const data = new Uint8Array([82, 148, 210, 255]);
+  toonGradient = new THREE.DataTexture(data, 4, 1, THREE.RedFormat);
+  toonGradient.minFilter = THREE.NearestFilter;
+  toonGradient.magFilter = THREE.NearestFilter;
+  toonGradient.generateMipmaps = false;
+  toonGradient.needsUpdate = true;
 }
 function cartoonizeModel(root) {
   root.traverse(o => {
@@ -162,7 +171,7 @@ function makeTextures() {
     c.fillStyle="#777";c.fillRect(0,0,w,h);
     for(let i=0;i<22000;i++){const v=75+Math.random()*120;c.fillStyle="rgb("+v+","+v+","+v+")";c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*3,1+Math.random()*3);}
   },11,11);
-  mats.grass = new THREE.MeshStandardMaterial({map:grassTexture,bumpMap:grassBump,bumpScale:.075,roughness:1});
+  mats.grass = new THREE.MeshToonMaterial({map:grassTexture,gradientMap:toonGradient});
 
   const pavementTexture = canvasTexture((c,w,h) => {
     c.fillStyle="#aaa99f";c.fillRect(0,0,w,h);
@@ -187,14 +196,14 @@ function makeTextures() {
     c.fillStyle="#888";c.fillRect(0,0,w,h);
     for(let i=0;i<16000;i++){const v=95+Math.random()*95;c.fillStyle="rgb("+v+","+v+","+v+")";c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);}
   },8,8);
-  mats.sidewalk = new THREE.MeshStandardMaterial({map:pavementTexture,bumpMap:pavementBump,bumpScale:.045,roughness:.96});
+  mats.sidewalk = new THREE.MeshToonMaterial({map:pavementTexture,gradientMap:toonGradient});
 
   const asphalt=canvasTexture((c,w,h)=>{
     c.fillStyle="#292f33";c.fillRect(0,0,w,h);
     for(let i=0;i<18000;i++){const v=Math.random()>.5?210:95;c.fillStyle="rgba("+v+","+v+","+v+","+(Math.random()*.13)+")";c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);}
     for(let i=0;i<65;i++){const x=Math.random()*w,y=Math.random()*h;c.strokeStyle="rgba(12,15,16,.22)";c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(x+Math.random()*25,y+Math.random()*8);c.stroke();}
   },5,5);
-  mats.road = new THREE.MeshStandardMaterial({map:asphalt,bumpMap:asphalt,bumpScale:.035,roughness:1});
+  mats.road = new THREE.MeshToonMaterial({map:asphalt,gradientMap:toonGradient});
 
   mats.white = mat(0xf1eee3);
   mats.yellow = mat(0xf4c64d,.75);
@@ -283,7 +292,7 @@ function createBuilding(x,z,index) {
   const floorH=3.15, h=floors*floorH;
   const group=new THREE.Group(); group.position.set(x,0,z); scene.add(group);
   const facade=mats.facades[index%mats.facades.length];
-  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({map:facade,bumpMap:facade,bumpScale:.065,roughness:.88,metalness:.025}));
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshToonMaterial({map:facade,gradientMap:toonGradient}));
   body.position.y=h/2+.22; body.castShadow=true; body.receiveShadow=true; group.add(body);
 
   const trim=mat(0xd4c9b7), darkTrim=mat(0x465257), glass=mat(index%4===0?0x8bb7c2:0x527583,.2,{metalness:.28}), glassLit=mat(0xe7c98d,.28,{emissive:0x6b4a20,emissiveIntensity:.12});
@@ -725,13 +734,13 @@ function playPlayerAction(name) {
   activePlayerAction = next;
 }
 function setupLighting(){
-  scene.background=new THREE.Color(0x8ed8ff);
-  scene.fog=new THREE.Fog(0x8ed8ff,185,455);
-  scene.add(new THREE.HemisphereLight(0xeaf7ff,0x65734f,1.55));
-  const fill = new THREE.DirectionalLight(0xb8d9ff,0.55);
+  scene.background=new THREE.Color(0x65c8ff);
+  scene.fog=new THREE.Fog(0x65c8ff,205,490);
+  scene.add(new THREE.HemisphereLight(0xf4fbff,0x78945b,1.9));
+  const fill = new THREE.DirectionalLight(0xc9e8ff,0.8);
   fill.position.set(55,35,-70);
   scene.add(fill);
-  sun=new THREE.DirectionalLight(0xffedcf,3.1);
+  sun=new THREE.DirectionalLight(0xfff1cf,2.5);
   sun.position.set(-65,95,50);sun.castShadow=true;
   sun.shadow.mapSize.set(quality.shadowSize,quality.shadowSize);
   sun.shadow.radius = isMobile ? 2 : 3;
@@ -844,12 +853,12 @@ try{
   renderer=new THREE.WebGLRenderer({antialias:!isMobile,powerPreference:"high-performance",alpha:false});
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.18;
+  renderer.toneMappingExposure=1.32;
   renderer.physicallyCorrectLights = true;
   renderer.shadowMap.enabled=quality.shadows;renderer.shadowMap.type=isMobile?THREE.BasicShadowMap:THREE.PCFSoftShadowMap;
   root.insertBefore(renderer.domElement,root.firstChild);
   clock=new THREE.Clock();
-  makeTextures();setupLighting();addRoads();addCity();addStreetFurniture();addTraffic();createPlayer();setupWorldActivities();setupControls();resize();
+  createToonGradient();makeTextures();setupLighting();addRoads();addCity();addStreetFurniture();addTraffic();createPlayer();setupWorldActivities();setupControls();resize();
   window.addEventListener("resize",resize);
   camera.position.set(0,5,24);camera.lookAt(0,1.5,16);
   animate();
