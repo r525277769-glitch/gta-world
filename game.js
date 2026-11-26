@@ -762,6 +762,8 @@ function setupControls(){
   runButton.addEventListener("pointerdown",e=>{e.preventDefault();running=true;runButton.classList.add("active");});
   const stopRun=()=>{running=false;runButton.classList.remove("active");};
   runButton.addEventListener("pointerup",stopRun);runButton.addEventListener("pointercancel",stopRun);runButton.addEventListener("pointerleave",stopRun);
+  actionButton.addEventListener("pointerdown",e=>{e.preventDefault();interact();});
+  window.addEventListener("keydown",e=>{if(e.key.toLowerCase()==="e")interact();});
   root.addEventListener("pointerdown",e=>{if(joystick.contains(e.target)||e.target===runButton)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
   root.addEventListener("pointermove",e=>{if(e.pointerId!==lookPointer)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.0045;pitch=THREE.MathUtils.clamp(pitch+dy*.0028,-.18,.78);});
   const endLook=e=>{if(e.pointerId===lookPointer)lookPointer=null;};
@@ -771,9 +773,11 @@ function setupControls(){
   window.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;if(e.key==="Shift")running=false;moveX=(keys.a||keys.arrowleft?-1:0)+(keys.d||keys.arrowright?1:0);moveZ=(keys.w||keys.arrowup?-1:0)+(keys.s||keys.arrowdown?1:0);});
 }
 function update(dt){
+  actionRefresh+=dt;
+  if(actionRefresh>.18){actionRefresh=0;refreshInteraction();}
   const moving=Math.hypot(moveX,moveZ)>.08;
   if (playerMixer) { playerMixer.update(dt); playPlayerAction(!moving ? "idle" : (running ? "run" : "walk")); }
-  if(moving){
+  if(moving&&!driving){
     const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
     const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
     const dir=new THREE.Vector3().addScaledVector(right,moveX).addScaledVector(forward,-moveZ).normalize();
@@ -790,14 +794,27 @@ function update(dt){
     player.userData.arms[0].rotation.x=-swing*.7;player.userData.arms[1].rotation.x=swing*.7;
     player.userData.torso.position.y=1.48+(moving?Math.abs(Math.sin(walkTime*2))*.035:0);
   }
+  if(driving&&moving){
+    parkedCar.rotation.y+=moveX*.95*dt;
+    const throttle=-moveZ;
+    const speed=throttle>=0?throttle*18:throttle*8;
+    const nx=parkedCar.position.x+Math.sin(parkedCar.rotation.y)*speed*dt;
+    const nz=parkedCar.position.z+Math.cos(parkedCar.rotation.y)*speed*dt;
+    if(!blocked(nx,nz)){parkedCar.position.x=THREE.MathUtils.clamp(nx,-190,190);parkedCar.position.z=THREE.MathUtils.clamp(nz,-190,190);}
+    yaw=parkedCar.rotation.y;
+  }
+  if(npc?.userData.marker)npc.userData.marker.position.y=3.05+Math.sin(clock.elapsedTime*2.4)*.12;
+  if(missionPackage?.visible)missionPackage.position.y=.12+Math.sin(clock.elapsedTime*2.5)*.08;
+  if(grammPickup?.visible)grammPickup.position.y=.12+Math.sin(clock.elapsedTime*2.1)*.08;
   traffic.forEach(t=>{
     t.mesh.position[t.axis]+=t.dir*t.speed*dt;
     if(t.mesh.position[t.axis]>185)t.mesh.position[t.axis]=-185;
     if(t.mesh.position[t.axis]<-185)t.mesh.position[t.axis]=185;
   });
-  const desired=new THREE.Vector3(player.position.x+Math.sin(yaw)*8.2,player.position.y+4.3+pitch*4,player.position.z+Math.cos(yaw)*8.2);
+  const focus=driving?parkedCar:player;
+  const desired=new THREE.Vector3(focus.position.x+Math.sin(yaw)*(driving?10:8.2),focus.position.y+(driving?5:4.3)+pitch*4,focus.position.z+Math.cos(yaw)*(driving?10:8.2));
   camera.position.lerp(desired,1-Math.pow(.001,dt));
-  camera.lookAt(player.position.x,player.position.y+1.35,player.position.z);
+  camera.lookAt(focus.position.x,focus.position.y+(driving?1.1:1.35),focus.position.z);
 }
 function animate(){
   requestAnimationFrame(animate);
@@ -829,7 +846,7 @@ try{
   renderer.shadowMap.enabled=quality.shadows;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   root.insertBefore(renderer.domElement,root.firstChild);
   clock=new THREE.Clock();
-  makeTextures();setupLighting();addRoads();addCity();addStreetFurniture();addTraffic();createPlayer();setupControls();resize();
+  makeTextures();setupLighting();addRoads();addCity();addStreetFurniture();addTraffic();createPlayer();setupWorldActivities();setupControls();resize();
   window.addEventListener("resize",resize);
   camera.position.set(0,5,24);camera.lookAt(0,1.5,16);
   animate();
