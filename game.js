@@ -93,18 +93,13 @@ function cartoonizeModel(root) {
     if (!o.isMesh) return;
     const convert = source => {
       if (!source || source.isMeshToonMaterial) return source;
-      const material = new THREE.MeshStandardMaterial({
+      const material = new THREE.MeshToonMaterial({
         color: source.color ? source.color.clone() : 0xffffff,
         map: source.map || null,
         alphaMap: source.alphaMap || null,
-        normalMap: source.normalMap || null,
-        roughnessMap: source.roughnessMap || null,
-        metalnessMap: source.metalnessMap || null,
-        aoMap: source.aoMap || null,
         emissive: source.emissive ? source.emissive.clone() : 0x000000,
         emissiveMap: source.emissiveMap || null,
-        roughness: source.roughness ?? 0.82,
-        metalness: source.metalness ?? 0.04,
+        gradientMap: toonGradient || null,
         transparent: source.transparent || false,
         opacity: source.opacity ?? 1,
         side: source.side
