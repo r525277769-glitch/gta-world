@@ -27,8 +27,11 @@ const isMobile = matchMedia("(max-width: 700px)").matches;
 const quality = {
   shadows: true,
   shadowSize: isMobile ? 1024 : 2048,
-  pixelRatio: isMobile ? 1.5 : 1.8
+  pixelRatio: isMobile ? 1.35 : 1.8,
+  minPixelRatio: isMobile ? 0.85 : 1.0
 };
+let adaptiveFrameMs = 16.7;
+let adaptiveCheckTime = 0;
 
 const palette = {
   asphalt: 0x30383d, concrete: 0xb8b5aa, curb: 0xd0c8b7,
@@ -124,8 +127,24 @@ function makeTextures() {
     c.fillStyle = "#343b40"; c.fillRect(0,0,w,h);
     for(let i=0;i<1800;i++){const x=Math.random()*w,y=Math.random()*h,a=Math.random()*.12;c.fillStyle="rgba(220,225,220,"+a+")";c.fillRect(x,y,1+Math.random()*2,1+Math.random()*2);}
   }, 5, 5);
-  mats.road = new THREE.MeshStandardMaterial({map:asphalt, roughness:1});
-  mats.sidewalk = mat(palette.concrete);
+  mats.road = new THREE.MeshStandardMaterial({map:asphalt, bumpMap:asphalt, bumpScale:.025, roughness:1});
+  const grassTexture = canvasTexture((c,w,h) => {
+    c.fillStyle = "#718b68"; c.fillRect(0,0,w,h);
+    for(let i=0;i<4200;i++){
+      const shade = Math.random()>.5 ? "rgba(190,205,130," : "rgba(35,70,42,";
+      c.fillStyle = shade + (Math.random()*.16+.025) + ")";
+      c.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*3,1+Math.random()*3);
+    }
+  }, 14, 14);
+  const pavementTexture = canvasTexture((c,w,h) => {
+    c.fillStyle = "#b9b5a9"; c.fillRect(0,0,w,h);
+    c.strokeStyle = "rgba(75,78,75,.18)"; c.lineWidth = 3;
+    for(let p=0;p<=w;p+=128){c.beginPath();c.moveTo(p,0);c.lineTo(p,h);c.stroke();}
+    for(let p=0;p<=h;p+=128){c.beginPath();c.moveTo(0,p);c.lineTo(w,p);c.stroke();}
+    for(let i=0;i<1800;i++){c.fillStyle="rgba(60,65,60,"+(Math.random()*.09)+")";c.fillRect(Math.random()*w,Math.random()*h,2,2);}
+  }, 8, 8);
+  mats.grass = new THREE.MeshStandardMaterial({map:grassTexture,roughness:1});
+  mats.sidewalk = new THREE.MeshStandardMaterial({map:pavementTexture,roughness:1});
   mats.white = mat(0xf1eee3);
   mats.yellow = mat(0xf4c64d, .75);
   mats.dark = mat(0x20272c);
@@ -152,7 +171,7 @@ function makeTextures() {
 }
 
 function addRoads() {
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(300,300),mat(palette.grass));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(300,300),mats.grass);
   ground.rotation.x=-Math.PI/2; ground.position.y=-.08; ground.receiveShadow=true; scene.add(ground);
   const roadW=14, step=44;
   for(let i=-3;i<=3;i++){
@@ -443,6 +462,19 @@ function update(dt){
 function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),.045);
+  // Automatically trade a little resolution for stable frame pacing on slower phones.
+  adaptiveFrameMs = adaptiveFrameMs * .92 + (dt * 1000) * .08;
+  adaptiveCheckTime += dt;
+  if(adaptiveCheckTime >= 2){
+    adaptiveCheckTime = 0;
+    let nextRatio = renderer.getPixelRatio();
+    if(adaptiveFrameMs > 23) nextRatio = Math.max(quality.minPixelRatio, nextRatio - .1);
+    else if(adaptiveFrameMs < 16) nextRatio = Math.min(quality.pixelRatio, nextRatio + .05);
+    if(Math.abs(nextRatio - renderer.getPixelRatio()) > .01){
+      renderer.setPixelRatio(nextRatio);
+      renderer.setSize(root.clientWidth,root.clientHeight,false);
+    }
+  }
   update(dt);renderer.render(scene,camera);
 }
 
