@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#101820">
+  <title>GTA WORLD — Downtown</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="game">
+    <div id="hud">
+      <div class="brand"><span class="brand-mark">GW</span><div><strong>GTA WORLD</strong><small>DOWNTOWN • ALPHA</small></div></div>
+      <div class="status"><span class="status-dot"></span> ONLINE</div>
+    </div>
+    <div id="mission"><small>СВОБОДНЫЙ РЕЖИМ</small><strong>Исследуй город</strong><span>Первая зона • Downtown</span></div>
+    <div id="hint">Загрузка города…</div>
+    <div id="controls">
+      <div id="joystick" aria-label="Джойстик движения"><div id="stick"></div></div>
+      <button id="run" type="button">БЕГ</button>
+      <div id="look-hint">Проводи пальцем по экрану, чтобы вращать камеру</div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="loading"><div class="loader"></div><strong>GTA WORLD</strong><span>Создаём Downtown…</span></div>
+    <div id="error" hidden></div>
+  </main>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
